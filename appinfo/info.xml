@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+    <id>ms365sync</id>
+    <name>MS365 Sync</name>
+    <summary>Sync Microsoft 365 OneDrive and SharePoint libraries to Nextcloud</summary>
+    <description><![CDATA[
+Connect your Microsoft 365 tenant and sync OneDrive and SharePoint document libraries to Nextcloud.
+
+Features:
+- Connect via Azure App Registration
+- Browse OneDrive and SharePoint document libraries
+- Configure sync jobs to copy libraries into Nextcloud
+- Resilient transfers via rclone (handles 100GB+ overnight)
+- Pause, resume, and schedule sync jobs
+- View rclone transfer logs
+    ]]></description>
+    <version>1.0.0</version>
+    <licence>agpl</licence>
+    <author>haraldo</author>
+    <namespace>Ms365Sync</namespace>
+    <category>files</category>
+    <bugs>https://github.com/haraldo/ms365sync/issues</bugs>
+    <dependencies>
+        <nextcloud min-version="28" max-version="30" />
+    </dependencies>
+    <navigations>
+        <navigation>
+            <name>MS365 Sync</name>
+            <route>ms365sync.page.index</route>
+        </navigation>
+    </navigations>
+</info>

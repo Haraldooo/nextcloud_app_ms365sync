@@ -1,0 +1,14 @@
+{
+    "name": "haraldo/ms365sync",
+    "description": "Sync Microsoft 365 OneDrive and SharePoint libraries to Nextcloud",
+    "type": "project",
+    "license": "AGPL-3.0-or-later",
+    "autoload": {
+        "psr-4": {
+            "OCA\\Ms365Sync\\": "lib/"
+        }
+    },
+    "require": {
+        "php": ">=8.1"
+    }
+}
