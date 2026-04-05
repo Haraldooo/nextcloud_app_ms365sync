@@ -32,4 +32,4 @@ volumes:
 networks:
   nc_internal:
     external: true
-    name: internal
+    name: ${NC_NETWORK:-sib-io_internal}
