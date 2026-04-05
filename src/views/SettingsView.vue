@@ -98,8 +98,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import NcButton from '@nextcloud/vue/dist/Components/NcButton.js'
-import NcTextField from '@nextcloud/vue/dist/Components/NcTextField.js'
+import NcButton from '@nextcloud/vue/components/NcButton'
+import NcTextField from '@nextcloud/vue/components/NcTextField'
 import {
     listTenants, createTenant, updateTenant, deleteTenant,
     testTenantConnection, getContainerConfig, setContainerConfig,

@@ -33,7 +33,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import NcButton from '@nextcloud/vue/dist/Components/NcButton.js'
+import NcButton from '@nextcloud/vue/components/NcButton'
 import JobCard from '../components/JobCard.vue'
 import { listJobs, startJob, stopJob, deleteJob, getJobProgress } from '../services/api.js'
 

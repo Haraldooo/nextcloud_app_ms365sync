@@ -46,7 +46,7 @@
 </template>
 
 <script setup>
-import NcButton from '@nextcloud/vue/dist/Components/NcButton.js'
+import NcButton from '@nextcloud/vue/components/NcButton'
 
 const props = defineProps({
     items: { type: Array, default: () => [] },

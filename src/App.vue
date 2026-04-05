@@ -26,10 +26,10 @@
 </template>
 
 <script setup>
-import NcContent from '@nextcloud/vue/dist/Components/NcContent.js'
-import NcAppNavigation from '@nextcloud/vue/dist/Components/NcAppNavigation.js'
-import NcAppNavigationItem from '@nextcloud/vue/dist/Components/NcAppNavigationItem.js'
-import NcAppContent from '@nextcloud/vue/dist/Components/NcAppContent.js'
+import NcContent from '@nextcloud/vue/components/NcContent'
+import NcAppNavigation from '@nextcloud/vue/components/NcAppNavigation'
+import NcAppNavigationItem from '@nextcloud/vue/components/NcAppNavigationItem'
+import NcAppContent from '@nextcloud/vue/components/NcAppContent'
 
 // Simple inline SVG icon components
 import { h } from 'vue'

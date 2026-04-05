@@ -73,7 +73,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import NcButton from '@nextcloud/vue/dist/Components/NcButton.js'
+import NcButton from '@nextcloud/vue/components/NcButton'
 import ProgressBar from '../components/ProgressBar.vue'
 import { getJob, startJob, stopJob, deleteJob, getJobProgress } from '../services/api.js'
 

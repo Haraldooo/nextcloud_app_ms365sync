@@ -22,7 +22,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import NcButton from '@nextcloud/vue/dist/Components/NcButton.js'
+import NcButton from '@nextcloud/vue/components/NcButton'
 import LogStream from '../components/LogStream.vue'
 import { getJobLog } from '../services/api.js'
 

@@ -24,80 +24,34 @@ Vue 3 Frontend  <--REST-->  NC PHP Backend  <--HTTP-->  Docker Container (rclone
 - **Vue 3 Frontend** — Settings, library browser, job management, log viewer
 - **Docker Sidecar** — rclone in RC daemon mode with a thin Flask wrapper for job lifecycle
 
-## Deployment (Nextcloud in Docker)
+## Installation
 
-This assumes Nextcloud runs in Docker with a named volume for `/var/www/html` (the standard `nextcloud:xx-apache` setup).
+The frontend is pre-built and included in the repo. No build tools needed on the server.
 
-### Step 1: Build the app
-
-On your server (or locally, then `scp` the folder):
+### Quick install
 
 ```bash
 git clone <repo-url> ms365sync
 cd ms365sync
-npm install && npm run build
+./install.sh
 ```
 
-### Step 2: Copy the app into the Nextcloud container
+The script will:
+1. Copy the app into your Nextcloud container
+2. Build and start the rclone worker container
+3. Wait for the worker health check
+4. Enable the app in Nextcloud
 
-```bash
-# From the parent directory of ms365sync/
-docker cp ms365sync nc_app_sib-io:/var/www/html/custom_apps/ms365sync
-docker exec nc_app_sib-io chown -R www-data:www-data /var/www/html/custom_apps/ms365sync
-```
+> **Note:** By default the script looks for a Nextcloud container named `nc_app_sib-io`. If yours is different, run: `NC_CONTAINER=your_container_name ./install.sh`
 
-### Step 3: Add the sync worker to your docker-compose
+### After install
 
-Add this service block to your existing `docker-compose.yml`:
+1. Open **Nextcloud > MS365 Sync > Settings**
+2. Set **Nextcloud URL** to your external domain (e.g. `https://cloud.example.com`)
+3. Set **Container URL** to `http://nc_ms365sync_worker:8080`
+4. Add your Azure AD tenant credentials (see below) and click **Test Connection**
 
-```yaml
-  # --- MS365 Sync Worker (rclone) ---
-  ms365sync-worker:
-    build: ./ms365sync/docker
-    container_name: nc_ms365sync_worker
-    restart: unless-stopped
-    volumes:
-      - ms365sync_logs:/logs
-    networks:
-      - internal
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-```
-
-And add the volume:
-
-```yaml
-volumes:
-  # ... your existing volumes ...
-  ms365sync_logs:
-```
-
-Then start it:
-
-```bash
-docker-compose up -d ms365sync-worker
-```
-
-### Step 4: Enable the app and configure
-
-```bash
-docker exec -u www-data nc_app_sib-io php occ app:enable ms365sync
-```
-
-Then open **Nextcloud > MS365 Sync > Settings** and configure:
-
-- **Nextcloud URL**: Your external URL (e.g. `https://cloud.example.com`) — used for WebDAV uploads
-- **Container URL**: `http://ms365sync-worker:8080` — since both containers share the `internal` network
-
-### Step 5: Azure AD App Registration
+### Azure AD App Registration
 
 1. Go to **Azure Portal > App Registrations > New Registration**
 2. Add API permissions (Application type):
@@ -107,31 +61,32 @@ Then open **Nextcloud > MS365 Sync > Settings** and configure:
 3. Grant admin consent
 4. Create a client secret
 5. Enter Tenant ID, Client ID, and Client Secret in the app settings
-6. Click **Test Connection** to verify
 
-### Updating the app
+### Updating
 
 ```bash
 cd ms365sync
 git pull
-npm run build
-docker cp . nc_app_sib-io:/var/www/html/custom_apps/ms365sync
-docker exec nc_app_sib-io chown -R www-data:www-data /var/www/html/custom_apps/ms365sync
-docker exec -u www-data nc_app_sib-io php occ upgrade
+./install.sh
 ```
 
 ## Development
+
+Building the frontend requires Node.js:
 
 ```bash
 # Frontend (watch mode)
 npm install
 npm run dev
 
+# One-time production build (commit the output to js/ and css/)
+npm run build
+
 # PHP dependencies
 composer install
 
 # Docker worker
-cd docker && docker-compose up --build
+cd docker && docker compose up --build
 ```
 
 ## License
