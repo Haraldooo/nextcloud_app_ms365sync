@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ms365sync_exapp"
-version = "1.0.1"
+version = "1.0.2"
 description = "Microsoft 365 → Nextcloud sync, packaged as a Nextcloud ExApp (AppAPI)."
 requires-python = ">=3.11"
 dependencies = [
