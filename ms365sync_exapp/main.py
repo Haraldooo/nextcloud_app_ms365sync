@@ -56,7 +56,6 @@ def _enabled_handler(enabled: bool, nc) -> str:
             nc.ui.top_menu.register(
                 name="ms365sync",
                 display_name="Microsoft 365 Sync",
-                path="ui/",
                 admin_required=True,
             )
         else:
