@@ -1,63 +1,62 @@
-# MS365 Sync — Nextcloud App
+# MS365 Sync — Nextcloud ExApp
 
-A Nextcloud app that syncs Microsoft 365 OneDrive and SharePoint document libraries into Nextcloud.
-Used Claude opus 4.6 with this.
+A Nextcloud **External App (ExApp)** that syncs Microsoft 365 OneDrive and SharePoint document libraries into Nextcloud.
+
+Built on the Nextcloud AppAPI framework: a single, stateless, versioned Docker image deployed via `occ app_api:app:deploy`. No PHP code in `custom_apps/`, no separate sidecar containers.
 
 ## Features
 
 - Connect to Azure AD tenants via App Registration (Client Credentials)
 - Browse OneDrive and SharePoint sites/drives
 - Configure sync jobs with Nextcloud destination folders
-- Resilient file transfers via rclone (handles 100GB+ overnight)
+- Resilient file transfers via rclone (handles 100 GB+ overnight)
 - Start, pause, and restart jobs
 - View rclone transfer logs in the browser
 - Uploads via Nextcloud WebDAV API (compatible with S3 backend)
-- Temporary app passwords are generated automatically per job — no manual Nextcloud configuration needed
 
 ## Architecture
 
 ```
-Vue 3 Frontend  <--REST-->  NC PHP Backend  <--HTTP-->  Docker Container (rclone RC + Flask)
+┌────── Single Docker image (ghcr.io/<org>/ms365sync-exapp:<ver>) ──────┐
+│  Python 3.12 + nc_py_api + FastAPI + rclone (child process)           │
+│   ms365sync_exapp/        ← Python ExApp                              │
+│     main.py               ← FastAPI + AppAPI lifecycle                │
+│     storage.py            ← state in NC appconfig_ex (stateless app)  │
+│     graph.py              ← Microsoft Graph client                    │
+│     rclone/manager.py     ← embedded rclone rcd supervisor            │
+│     routes/               ← /api/v1 endpoints                         │
+│     ui/                   ← built Vue 3 SPA, served at /ui/           │
+└───────────────────────────────────────────────────────────────────────┘
 ```
 
-- **NC PHP Backend** — REST API, database, MS365 credential management, job orchestration
-- **Vue 3 Frontend** — Settings, library browser, job management, log viewer
-- **Docker Sidecar** — rclone in RC daemon mode with a thin Flask wrapper for job lifecycle
+All persistence (tenants, jobs, config) lives in Nextcloud's app config via `nc_py_api` — the container itself stores nothing on disk. Updates work by `app_api:app:deploy`-ing a new image tag; AppAPI handles the container lifecycle.
 
 ## Installation
 
-The frontend is pre-built and included in the repo. No build tools needed on the server.
-
-### Quick install
+Prerequisites: Nextcloud with the **AppAPI** app installed and a Deploy Daemon configured.
 
 ```bash
-git clone <repo-url> ms365sync
-cd ms365sync
-./install.sh
+# 1. Build & push the image
+docker build -t ghcr.io/<org>/ms365sync-exapp:1.0.0 .
+docker push ghcr.io/<org>/ms365sync-exapp:1.0.0
+
+# 2. Deploy via AppAPI on the Nextcloud host
+occ app_api:app:deploy ms365sync ghcr.io/<org>/ms365sync-exapp:1.0.0
+occ app_api:app:enable ms365sync
 ```
 
-The script will:
-1. Copy the app into your Nextcloud container
-2. Build and start the rclone worker container
-3. Wait for the worker health check
-4. Enable the app in Nextcloud
+### Configuration
 
-> **Note:** By default the script looks for a Nextcloud container named `nc_app_sib-io`. If yours is different, run: `NC_CONTAINER=your_container_name ./install.sh`
+Open **Nextcloud → Microsoft 365 Sync** in the top navigation, then:
 
-### After install
-
-1. Open **Nextcloud > MS365 Sync > Settings**
-2. Set **Nextcloud URL** to your external domain (e.g. `https://cloud.example.com`)
-3. Set **Container URL** to `http://nc_ms365sync_worker:8080`
-4. Add your Azure AD tenant credentials (see below) and click **Test Connection**
+1. Set **Nextcloud URL** (the externally reachable URL the rclone worker should upload to).
+2. Add your Azure AD tenant credentials and click **Test Connection**.
+3. Set the destination user's app password via the *Container* settings (one-time).
 
 ### Azure AD App Registration
 
-1. Go to **Azure Portal > App Registrations > New Registration**
-2. Add API permissions (Application type):
-   - `Sites.Read.All`
-   - `Files.Read.All`
-   - `User.Read.All`
+1. **Azure Portal → App Registrations → New Registration**
+2. API permissions (Application type): `Sites.Read.All`, `Files.Read.All`, `User.Read.All`
 3. Grant admin consent
 4. Create a client secret
 5. Enter Tenant ID, Client ID, and Client Secret in the app settings
@@ -65,28 +64,23 @@ The script will:
 ### Updating
 
 ```bash
-cd ms365sync
-git pull
-./install.sh
+docker build -t ghcr.io/<org>/ms365sync-exapp:1.0.1 .
+docker push ghcr.io/<org>/ms365sync-exapp:1.0.1
+occ app_api:app:deploy ms365sync ghcr.io/<org>/ms365sync-exapp:1.0.1
 ```
+
+Tenants and jobs survive updates because they live in Nextcloud, not in the container.
 
 ## Development
 
-Building the frontend requires Node.js:
-
 ```bash
-# Frontend (watch mode)
+# Frontend dev server (talks to a running ExApp at /api/v1)
 npm install
 npm run dev
 
-# One-time production build (commit the output to js/ and css/)
-npm run build
-
-# PHP dependencies
-composer install
-
-# Docker worker
-cd docker && docker compose up --build
+# Build the image locally
+docker build -t ms365sync-exapp:dev .
+docker run --rm -p 8080:8080 ms365sync-exapp:dev
 ```
 
 ## License

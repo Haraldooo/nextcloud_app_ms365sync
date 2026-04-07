@@ -1,39 +1,16 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
-import { mkdirSync, renameSync } from 'fs'
 
-const appId = 'ms365sync'
-
+// Builds the SPA into dist/ as a self-contained static bundle that the
+// ExApp container will serve under /ui/. The Dockerfile copies dist/
+// into ms365sync_exapp/ui at image build time.
 export default defineConfig({
-    plugins: [
-        vue(),
-        // Move CSS files from js/ to css/ after build
-        {
-            name: 'move-css',
-            closeBundle() {
-                try {
-                    mkdirSync('css', { recursive: true })
-                    renameSync(`js/${appId}-style.css`, `css/${appId}-main.css`)
-                } catch {
-                    // CSS file may not exist
-                }
-            },
-        },
-    ],
+    plugins: [vue()],
+    base: './',
     build: {
-        outDir: 'js',
-        rollupOptions: {
-            input: {
-                main: resolve(__dirname, 'src/main.js'),
-            },
-            output: {
-                entryFileNames: `${appId}-[name].js`,
-                chunkFileNames: `${appId}-[name].js`,
-                assetFileNames: `${appId}-[name][extname]`,
-            },
-        },
-        cssCodeSplit: false,
+        outDir: 'dist',
+        emptyOutDir: true,
     },
     resolve: {
         alias: {

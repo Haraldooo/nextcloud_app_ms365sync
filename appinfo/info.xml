@@ -2,32 +2,41 @@
 <info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
       xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
     <id>ms365sync</id>
-    <name>MS365 Sync</name>
-    <summary>Sync Microsoft 365 OneDrive and SharePoint libraries to Nextcloud</summary>
-    <description><![CDATA[
-Connect your Microsoft 365 tenant and sync OneDrive and SharePoint document libraries to Nextcloud.
-
-Features:
-- Connect via Azure App Registration
-- Browse OneDrive and SharePoint document libraries
-- Configure sync jobs to copy libraries into Nextcloud
-- Resilient transfers via rclone (handles 100GB+ overnight)
-- Pause, resume, and schedule sync jobs
-- View rclone transfer logs
-    ]]></description>
+    <name>Microsoft 365 Sync</name>
+    <summary>Sync OneDrive and SharePoint into Nextcloud</summary>
+    <description><![CDATA[Sync OneDrive and SharePoint document libraries into Nextcloud via rclone. Packaged as a Nextcloud External App (AppAPI).]]></description>
     <version>1.0.0</version>
     <licence>agpl</licence>
-    <author>haraldo</author>
-    <namespace>Ms365Sync</namespace>
-    <category>files</category>
-    <bugs>https://github.com/haraldo/ms365sync/issues</bugs>
+    <author>sib.io</author>
+    <namespace>MS365Sync</namespace>
+    <category>integration</category>
+    <bugs>https://github.com/Haraldooo/nextcloud_app_ms365sync/issues</bugs>
+    <repository type="git">https://github.com/Haraldooo/nextcloud_app_ms365sync.git</repository>
     <dependencies>
-        <nextcloud min-version="28" max-version="30" />
+        <nextcloud min-version="29" max-version="34"/>
     </dependencies>
-    <navigations>
-        <navigation>
-            <name>MS365 Sync</name>
-            <route>ms365sync.page.index</route>
-        </navigation>
-    </navigations>
+    <external-app>
+        <docker-install>
+            <registry>ghcr.io</registry>
+            <image>haraldooo/ms365sync-exapp</image>
+            <image-tag>1.0.0</image-tag>
+        </docker-install>
+        <scopes>
+            <value>FILES</value>
+            <value>USER_INFO</value>
+            <value>BACKGROUND_JOB</value>
+        </scopes>
+        <routes>
+            <route>
+                <url>api\/v1\/.*</url>
+                <verb>GET,POST,PUT,DELETE</verb>
+                <access_level>ADMIN</access_level>
+            </route>
+            <route>
+                <url>ui\/.*</url>
+                <verb>GET</verb>
+                <access_level>ADMIN</access_level>
+            </route>
+        </routes>
+    </external-app>
 </info>

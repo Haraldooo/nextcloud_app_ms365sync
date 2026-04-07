@@ -1,7 +1,8 @@
 import axios from '@nextcloud/axios'
-import { generateUrl } from '@nextcloud/router'
 
-const baseUrl = generateUrl('/apps/ms365sync/api/v1')
+// ExApp: the UI is served by the ExApp container itself and AppAPI
+// proxies same-origin requests back to it. Use a relative base URL.
+const baseUrl = '../api/v1'
 
 // --- Tenants ---
 export function listTenants() {
