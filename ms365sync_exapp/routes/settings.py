@@ -20,7 +20,13 @@ class TenantIn(BaseModel):
 
 
 class ContainerCfgIn(BaseModel):
+    url: str | None = None
     nextcloudUrl: str | None = None
+
+
+class AppPasswordIn(BaseModel):
+    user: str
+    password: str
 
 
 def _serialize(t: storage.AzureTenant) -> dict:
@@ -81,9 +87,12 @@ def test_tenant(tid: int):
     except Exception as exc:  # noqa: BLE001
         t.status = "invalid"
         storage.save_tenant(t)
-        raise HTTPException(400, f"connection failed: {exc}") from exc
+        raise HTTPException(
+            400,
+            {"status": "invalid", "message": f"connection failed: {exc}"},
+        ) from exc
     storage.save_tenant(t)
-    return {"status": "valid"}
+    return {"status": "valid", "message": "Connection OK"}
 
 
 # ----- Container / target config --------------------------------------------
@@ -91,12 +100,44 @@ def test_tenant(tid: int):
 
 @router.get("/container")
 def get_container():
-    return storage.get_container_config()
+    cfg = storage.get_container_config()
+    cfg.setdefault("url", "")
+    cfg.setdefault("nextcloudUrl", "")
+    return cfg
 
 
 @router.put("/container")
 def set_container(body: ContainerCfgIn):
     cfg = storage.get_container_config()
+    if body.url is not None:
+        cfg["url"] = body.url
     if body.nextcloudUrl is not None:
         cfg["nextcloudUrl"] = body.nextcloudUrl
     return storage.set_container_config(cfg)
+
+
+# ----- Per-user WebDAV app passwords ----------------------------------------
+
+
+@router.get("/app-passwords")
+def list_app_passwords():
+    """Return the list of users that have a stored app password.
+
+    The password itself is never returned to the UI."""
+    return [{"user": u} for u in storage.list_app_password_users()]
+
+
+@router.put("/app-passwords")
+def set_app_password(body: AppPasswordIn):
+    if not body.user or not body.password:
+        raise HTTPException(400, "user and password are required")
+    storage.set_app_password(body.user, body.password)
+    storage.add_app_password_user(body.user)
+    return {"user": body.user, "ok": True}
+
+
+@router.delete("/app-passwords/{user}")
+def delete_app_password(user: str):
+    storage.delete_app_password(user)
+    storage.remove_app_password_user(user)
+    return {"ok": True}

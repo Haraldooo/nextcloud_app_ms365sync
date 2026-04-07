@@ -98,17 +98,14 @@ def start_job(jid: int, request: Request):
     if not nc_url:
         raise HTTPException(400, "container nextcloudUrl not configured")
 
-    # The destination app password is provisioned by the operator and stored
-    # in app config under "dest_app_password_<user>". This avoids generating
-    # short-lived credentials per request, which depends on AppAPI version.
-    app_password = storage.nc_app.appconfig_ex.get_value(
-        f"dest_app_password_{j.dest_user}", default=""
-    ) if hasattr(storage.nc_app, "appconfig_ex") else ""
+    # The destination app password is provisioned by the operator via the
+    # Settings UI (PUT /api/v1/settings/app-passwords) and stored per user.
+    app_password = storage.get_app_password(j.dest_user)
     if not app_password:
         raise HTTPException(
             400,
             f"no app password configured for user {j.dest_user!r}; "
-            "set it via /api/v1/settings/container",
+            "set one in Settings → App Passwords",
         )
 
     rclone = request.app.state.rclone

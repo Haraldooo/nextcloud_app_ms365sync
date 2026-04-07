@@ -6,7 +6,10 @@
     <title>Microsoft 365 Sync</title>
   </head>
   <body>
-    <div id="ms365sync"></div>
+    <!-- Standalone dev page for `npm run serve`. The Vue entry self-mounts
+         into #app-content if present, else into body. The id below mimics
+         Nextcloud's app-content container so the dev page resembles prod. -->
+    <div id="app-content"></div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

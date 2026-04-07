@@ -12,7 +12,7 @@ import logging
 import os
 import subprocess
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -178,7 +178,7 @@ class RcloneManager:
                 "rclone_jobid": rclone_jobid,
                 "src_remote": src,
                 "dst_remote": dst,
-                "started_at": datetime.utcnow().isoformat(),
+                "started_at": datetime.now(timezone.utc).isoformat(),
             }
             return rclone_jobid
         except Exception:
@@ -226,9 +226,12 @@ class RcloneManager:
         except Exception as exc:  # noqa: BLE001
             return {"finished": True, "success": False, "error": str(exc)}
 
-    def tail_log(self, lines: int = 100) -> str:
+    def tail_log(self, lines: int = 100, nc_job_id: int | None = None) -> str:
         if not LOG_FILE.exists():
             return ""
         with LOG_FILE.open("r") as f:
             data = f.readlines()
+        if nc_job_id is not None:
+            needle = f"job/{nc_job_id}"
+            data = [line for line in data if needle in line]
         return "".join(data[-lines:])

@@ -10,9 +10,9 @@ router = APIRouter()
 
 @router.get("/{job_id}", response_class=PlainTextResponse)
 def get_log(job_id: int, request: Request) -> str:
-    return request.app.state.rclone.tail_log(lines=1000)
+    return request.app.state.rclone.tail_log(lines=1000, nc_job_id=job_id)
 
 
 @router.get("/{job_id}/tail", response_class=PlainTextResponse)
 def tail_log(job_id: int, request: Request, lines: int = 50) -> str:
-    return request.app.state.rclone.tail_log(lines=lines)
+    return request.app.state.rclone.tail_log(lines=lines, nc_job_id=job_id)

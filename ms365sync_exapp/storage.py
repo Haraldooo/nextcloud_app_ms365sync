@@ -20,6 +20,7 @@ TENANT_KEY_PREFIX = "tenant_"
 JOB_INDEX_KEY = "jobs_index"
 JOB_KEY_PREFIX = "job_"
 CONTAINER_CFG_KEY = "container_config"
+APP_PASSWORD_KEY_PREFIX = "dest_app_password_"
 
 
 # ---------------------------------------------------------------------------
@@ -78,10 +79,21 @@ def _set(key: str, value: str) -> None:
 
 
 def _delete(key: str) -> None:
-    try:
-        nc_app.appconfig_ex.delete(key)
-    except Exception:
-        pass
+    """Delete an app-config key.
+
+    nc_py_api renamed the API across versions: ``delete`` (single key) vs
+    ``delete_values`` (list). Try both rather than swallowing failures
+    silently — silent swallowing accumulates dead keys forever.
+    """
+    api = nc_app.appconfig_ex
+    if hasattr(api, "delete"):
+        api.delete(key)
+    elif hasattr(api, "delete_values"):
+        api.delete_values([key])
+    else:
+        raise RuntimeError(
+            "appconfig_ex exposes neither delete() nor delete_values()"
+        )
 
 
 def _load_index(key: str) -> list[int]:
@@ -189,3 +201,56 @@ def get_container_config() -> dict:
 def set_container_config(cfg: dict) -> dict:
     _set(CONTAINER_CFG_KEY, json.dumps(cfg))
     return cfg
+
+
+# ---------------------------------------------------------------------------
+# Per-user WebDAV app passwords
+# ---------------------------------------------------------------------------
+#
+# Each sync job writes to a Nextcloud user's WebDAV root, so we need an app
+# password for that user. AppAPI does not expose a stable cross-version API
+# for an ExApp to mint a password on behalf of an arbitrary user, so the
+# admin sets one per user via the Settings UI. We store them in app config
+# (encrypted at rest by Nextcloud's secrets store) keyed by user id.
+
+
+def get_app_password(user: str) -> str:
+    return _get(f"{APP_PASSWORD_KEY_PREFIX}{user}") or ""
+
+
+def set_app_password(user: str, password: str) -> None:
+    _set(f"{APP_PASSWORD_KEY_PREFIX}{user}", password)
+
+
+def delete_app_password(user: str) -> None:
+    _delete(f"{APP_PASSWORD_KEY_PREFIX}{user}")
+
+
+def list_app_password_users() -> list[str]:
+    """Return the list of user ids that have a stored app password.
+
+    The appconfig_ex API doesn't support prefix scans on every nc_py_api
+    version, so we maintain an index alongside the values."""
+    raw = _get("dest_app_password_users")
+    if not raw:
+        return []
+    try:
+        return list(json.loads(raw))
+    except Exception:
+        return []
+
+
+def _save_app_password_users(users: list[str]) -> None:
+    _set("dest_app_password_users", json.dumps(sorted(set(users))))
+
+
+def add_app_password_user(user: str) -> None:
+    users = list_app_password_users()
+    if user not in users:
+        users.append(user)
+        _save_app_password_users(users)
+
+
+def remove_app_password_user(user: str) -> None:
+    users = [u for u in list_app_password_users() if u != user]
+    _save_app_password_users(users)

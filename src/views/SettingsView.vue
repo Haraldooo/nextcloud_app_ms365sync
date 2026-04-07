@@ -27,9 +27,41 @@
                 </template>
                 Save
             </NcButton>
+        </div>
+
+        <!-- App Passwords -->
+        <div class="section">
+            <h3>WebDAV App Passwords</h3>
             <p class="hint">
-                App passwords for WebDAV access are generated automatically per job — no manual Nextcloud configuration needed.
+                Each sync job writes to a Nextcloud user's WebDAV root and needs an app password for that user.
+                Generate one in Nextcloud (Personal Settings → Security → Devices &amp; sessions) and store it here.
             </p>
+            <div v-for="entry in appPasswords" :key="entry.user" class="tenant-card">
+                <div class="tenant-header">
+                    <strong>{{ entry.user }}</strong>
+                    <NcButton type="error" @click="removeAppPassword(entry.user)">Delete</NcButton>
+                </div>
+            </div>
+            <div class="add-tenant-form">
+                <h4>Add / Update App Password</h4>
+                <div class="form-group">
+                    <label>Nextcloud User ID</label>
+                    <NcTextField v-model="appPwForm.user" placeholder="alice" />
+                </div>
+                <div class="form-group">
+                    <label>App Password</label>
+                    <NcTextField v-model="appPwForm.password" type="password" placeholder="Enter app password" />
+                </div>
+                <div class="form-actions">
+                    <NcButton type="primary" :disabled="savingAppPw" @click="saveAppPassword">
+                        <template #icon>
+                            <span v-if="savingAppPw" class="icon-loading-small" />
+                        </template>
+                        Save
+                    </NcButton>
+                </div>
+                <div v-if="appPwError" class="error-alert">{{ appPwError }}</div>
+            </div>
         </div>
 
         <!-- Azure Tenants -->
@@ -100,9 +132,11 @@
 import { ref, onMounted } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
+import { showError, getDialogBuilder } from '@nextcloud/dialogs'
 import {
     listTenants, createTenant, updateTenant, deleteTenant,
     testTenantConnection, getContainerConfig, setContainerConfig,
+    listAppPasswords, setAppPassword, deleteAppPassword,
 } from '../services/api.js'
 
 const tenants = ref([])
@@ -114,6 +148,10 @@ const testingId = ref(null)
 const testResult = ref(null)
 const error = ref('')
 const editingTenant = ref(null)
+const appPasswords = ref([])
+const appPwForm = ref({ user: '', password: '' })
+const savingAppPw = ref(false)
+const appPwError = ref('')
 
 const form = ref({
     name: '',
@@ -124,15 +162,44 @@ const form = ref({
 
 async function loadData() {
     try {
-        const [tenantsRes, containerRes] = await Promise.all([
+        const [tenantsRes, containerRes, appPwRes] = await Promise.all([
             listTenants(),
             getContainerConfig(),
+            listAppPasswords(),
         ])
         tenants.value = tenantsRes.data
-        containerUrl.value = containerRes.data.url
+        containerUrl.value = containerRes.data.url || ''
         nextcloudUrl.value = containerRes.data.nextcloudUrl || ''
+        appPasswords.value = appPwRes.data
     } catch (e) {
         error.value = 'Failed to load settings'
+    }
+}
+
+async function saveAppPassword() {
+    if (!appPwForm.value.user || !appPwForm.value.password) {
+        appPwError.value = 'User and password are required'
+        return
+    }
+    savingAppPw.value = true
+    appPwError.value = ''
+    try {
+        await setAppPassword(appPwForm.value.user, appPwForm.value.password)
+        appPwForm.value = { user: '', password: '' }
+        await loadData()
+    } catch (e) {
+        appPwError.value = e.response?.data?.detail || 'Failed to save app password'
+    } finally {
+        savingAppPw.value = false
+    }
+}
+
+async function removeAppPassword(user) {
+    try {
+        await deleteAppPassword(user)
+        await loadData()
+    } catch (e) {
+        appPwError.value = 'Failed to delete app password'
     }
 }
 
@@ -212,15 +279,29 @@ function cancelEdit() {
     resetForm()
 }
 
+async function confirmDialog(message) {
+    return new Promise((resolve) => {
+        getDialogBuilder('Confirm')
+            .setText(message)
+            .setButtons([
+                { label: 'Cancel', type: 'secondary', callback: () => resolve(false) },
+                { label: 'Delete', type: 'error', callback: () => resolve(true) },
+            ])
+            .build()
+            .show()
+    })
+}
+
 async function removeTenant(tenant) {
-    if (!confirm(`Delete tenant "${tenant.name}"? This will not delete associated sync jobs.`)) {
-        return
-    }
+    const ok = await confirmDialog(
+        `Delete tenant "${tenant.name}"? This will not delete associated sync jobs.`,
+    )
+    if (!ok) return
     try {
         await deleteTenant(tenant.id)
         await loadData()
     } catch (e) {
-        error.value = 'Failed to delete tenant'
+        showError('Failed to delete tenant')
     }
 }
 

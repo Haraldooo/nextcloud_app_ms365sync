@@ -21,6 +21,7 @@ from nc_py_api.ex_app import (
     set_handlers,
 )
 
+from . import storage
 from .rclone.manager import RcloneManager
 from .routes import jobs, libraries, logs, settings
 
@@ -32,6 +33,21 @@ rclone = RcloneManager()
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     rclone.start()
+    # Reconcile persisted job state with the freshly-started rclone daemon.
+    # The in-memory _active map is empty after a container restart, so any
+    # job persisted as "running" would otherwise be unkillable and report
+    # "unknown job" forever. Mark them as errored so the operator can
+    # restart them explicitly.
+    try:
+        for j in storage.list_jobs():
+            if j.status == "running":
+                j.status = "error"
+                j.last_error = "container restarted while job was running"
+                j.rclone_job_id = None
+                storage.save_job(j)
+    except Exception:  # noqa: BLE001
+        # Storage may not be reachable yet on first boot; non-fatal.
+        pass
     try:
         yield
     finally:
@@ -54,8 +70,10 @@ def _enabled_handler(enabled: bool, nc) -> str:
             nc.log(LogLvl.INFO, "ms365sync enabled")
             # Register the self-mounting SPA bundle + its stylesheet.
             # AppAPI injects these into the Nextcloud-rendered top-menu page.
-            nc.ui.resources.set_script("top_menu", "ms365sync", "js/ms365sync.js")
-            nc.ui.resources.set_style("top_menu", "ms365sync", "css/ms365sync.css")
+            # NB: AppAPI appends ".js"/".css" to these paths automatically,
+            # so do NOT include the extension here.
+            nc.ui.resources.set_script("top_menu", "ms365sync", "js/ms365sync")
+            nc.ui.resources.set_style("top_menu", "ms365sync", "css/ms365sync")
             nc.ui.top_menu.register(
                 name="ms365sync",
                 display_name="Microsoft 365 Sync",

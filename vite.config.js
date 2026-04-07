@@ -18,6 +18,10 @@ export default defineConfig({
             fileName: () => 'ms365sync.js',
         },
         rollupOptions: {
+            // Everything (Vue, vue-router, @nextcloud/vue, axios) is bundled
+            // into the IIFE. Nextcloud does not expose these as page globals,
+            // so externalizing would crash at init. The trade-off is bundle
+            // size; that's acceptable for an admin-only ExApp.
             output: {
                 assetFileNames: (asset) => {
                     if (asset.name && asset.name.endsWith('.css')) {

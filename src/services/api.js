@@ -34,6 +34,17 @@ export function setContainerConfig(url, nextcloudUrl) {
     return axios.put(`${baseUrl}/settings/container`, { url, nextcloudUrl })
 }
 
+// --- App Passwords (per WebDAV destination user) ---
+export function listAppPasswords() {
+    return axios.get(`${baseUrl}/settings/app-passwords`)
+}
+export function setAppPassword(user, password) {
+    return axios.put(`${baseUrl}/settings/app-passwords`, { user, password })
+}
+export function deleteAppPassword(user) {
+    return axios.delete(`${baseUrl}/settings/app-passwords/${encodeURIComponent(user)}`)
+}
+
 // --- Libraries ---
 export function listMyDrives(tenantId, userId) {
     return axios.get(`${baseUrl}/libraries/${tenantId}/me/drives`, { params: { userId } })
