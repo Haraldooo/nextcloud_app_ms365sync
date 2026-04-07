@@ -51,8 +51,17 @@ def _enabled_handler(enabled: bool, nc) -> str:
     try:
         if enabled:
             nc.log(LogLvl.INFO, "ms365sync enabled")
+            # Register the top-menu entry that opens the embedded SPA.
+            nc.ui.resources.set_script("top_menu", "ms365sync", "ui/")
+            nc.ui.top_menu.register(
+                name="ms365sync",
+                display_name="Microsoft 365 Sync",
+                path="ui/",
+                admin_required=True,
+            )
         else:
             nc.log(LogLvl.INFO, "ms365sync disabled")
+            nc.ui.top_menu.unregister("ms365sync")
         return ""
     except Exception as exc:  # noqa: BLE001
         return str(exc)

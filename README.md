@@ -31,19 +31,47 @@ Built on the Nextcloud AppAPI framework: a single, stateless, versioned Docker i
 
 All persistence (tenants, jobs, config) lives in Nextcloud's app config via `nc_py_api` — the container itself stores nothing on disk. Updates work by `app_api:app:deploy`-ing a new image tag; AppAPI handles the container lifecycle.
 
-## Installation
+## Publishing the image to ghcr.io
+
+The image is published to **GitHub Container Registry** at `ghcr.io/haraldooo/ms365sync-exapp`.
+
+### One-time setup (per machine that publishes)
+
+1. **Create a Personal Access Token (classic)** at <https://github.com/settings/tokens> with scope **`write:packages`**.
+2. **Login Docker to ghcr.io:**
+
+   ```bash
+   export CR_PAT=ghp_xxxxxxxxxxxxxxxxxxxx
+   echo "$CR_PAT" | docker login ghcr.io -u haraldooo --password-stdin
+   ```
+
+3. **Make the package public** (one-time, after the first push) at <https://github.com/users/haraldooo/packages/container/ms365sync-exapp/settings> → *Change visibility → Public*. Otherwise the Nextcloud host needs to `docker login ghcr.io` too.
+
+### Cut a release
+
+The `Makefile` bumps every version field and builds a multi-arch image (`linux/amd64` + `linux/arm64`) in one shot:
+
+```bash
+make release VERSION=1.0.1     # bumps info.xml, info.json, pyproject.toml, package.json
+git diff                       # review
+git commit -am "release 1.0.1"
+git tag v1.0.1 && git push --tags
+
+make build VERSION=1.0.1       # buildx multi-arch build + push to ghcr.io
+```
+
+`make build` and `make push` are aliases — buildx must push directly because multi-arch images can't be loaded into the local Docker daemon.
+
+### Installation on a Nextcloud host
 
 Prerequisites: Nextcloud with the **AppAPI** app installed and a Deploy Daemon configured.
 
 ```bash
-# 1. Build & push the image
-docker build -t ghcr.io/<org>/ms365sync-exapp:1.0.0 .
-docker push ghcr.io/<org>/ms365sync-exapp:1.0.0
-
-# 2. Deploy via AppAPI on the Nextcloud host
-occ app_api:app:deploy ms365sync ghcr.io/<org>/ms365sync-exapp:1.0.0
+occ app_api:app:deploy ms365sync ghcr.io/haraldooo/ms365sync-exapp:1.0.1
 occ app_api:app:enable ms365sync
 ```
+
+If the package is private, run `docker login ghcr.io` on the Nextcloud host first with a token that has `read:packages`.
 
 ### Configuration
 
