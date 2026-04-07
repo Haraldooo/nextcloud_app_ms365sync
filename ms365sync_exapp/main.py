@@ -1,15 +1,16 @@
 """FastAPI entry point for the ms365sync ExApp.
 
-Wires up the AppAPI lifecycle (handled by nc_py_api), serves the static
-Vue UI under /ui, exposes the JSON API under /api/v1, and starts the
-embedded rclone daemon as a child process for the lifetime of the app.
+Wires up the AppAPI lifecycle (handled by nc_py_api), serves the Vue
+SPA bundle under /js and /css (loaded into Nextcloud's top-menu page
+via nc.ui.resources.set_script/set_style), exposes the JSON API under
+/api/v1, and starts the embedded rclone daemon as a child process for
+the lifetime of the app.
 """
 
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from nc_py_api.ex_app import (
@@ -51,8 +52,10 @@ def _enabled_handler(enabled: bool, nc) -> str:
     try:
         if enabled:
             nc.log(LogLvl.INFO, "ms365sync enabled")
-            # Register the top-menu entry that opens the embedded SPA.
-            nc.ui.resources.set_script("top_menu", "ms365sync", "ui/")
+            # Register the self-mounting SPA bundle + its stylesheet.
+            # AppAPI injects these into the Nextcloud-rendered top-menu page.
+            nc.ui.resources.set_script("top_menu", "ms365sync", "js/ms365sync.js")
+            nc.ui.resources.set_style("top_menu", "ms365sync", "css/ms365sync.css")
             nc.ui.top_menu.register(
                 name="ms365sync",
                 display_name="Microsoft 365 Sync",
@@ -69,13 +72,12 @@ def _enabled_handler(enabled: bool, nc) -> str:
 set_handlers(APP, _enabled_handler)
 
 
-@APP.get("/")
-async def root() -> RedirectResponse:
-    return RedirectResponse(url="/ui/")
-
-
+# Serve the bundle + stylesheet at stable URLs that AppAPI's set_script /
+# set_style point at. The Dockerfile drops dist/ms365sync.js and
+# dist/ms365sync.css into UI_DIR at image build time.
 if UI_DIR.exists():
-    APP.mount("/ui", StaticFiles(directory=str(UI_DIR), html=True), name="ui")
+    APP.mount("/js", StaticFiles(directory=str(UI_DIR)), name="js")
+    APP.mount("/css", StaticFiles(directory=str(UI_DIR)), name="css")
 
 
 # Expose the rclone manager to route modules via app.state

@@ -33,7 +33,12 @@
                 <access_level>ADMIN</access_level>
             </route>
             <route>
-                <url>ui\/.*</url>
+                <url>js\/.*</url>
+                <verb>GET</verb>
+                <access_level>ADMIN</access_level>
+            </route>
+            <route>
+                <url>css\/.*</url>
                 <verb>GET</verb>
                 <access_level>ADMIN</access_level>
             </route>

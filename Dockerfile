@@ -9,7 +9,7 @@ WORKDIR /ui
 COPY package.json package-lock.json* ./
 RUN npm install --no-audit --no-fund
 COPY src ./src
-COPY vite.config.js index.html ./
+COPY vite.config.js ./
 RUN npm run build
 
 

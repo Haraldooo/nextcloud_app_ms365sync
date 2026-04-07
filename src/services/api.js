@@ -1,8 +1,13 @@
 import axios from '@nextcloud/axios'
 
-// ExApp: the UI is served by the ExApp container itself and AppAPI
-// proxies same-origin requests back to it. Use a relative base URL.
-const baseUrl = '../api/v1'
+// ExApp: the bundle is loaded into the Nextcloud-rendered page, so
+// requests must go through AppAPI's proxy to reach the ExApp container.
+// OC.generateUrl() yields the correct /index.php/apps/... prefix for the
+// running Nextcloud install.
+const ocGenerate = (typeof window !== 'undefined' && window.OC && window.OC.generateUrl)
+    ? window.OC.generateUrl
+    : (path) => path
+const baseUrl = ocGenerate('/apps/app_api/proxy/ms365sync/api/v1')
 
 // --- Tenants ---
 export function listTenants() {
