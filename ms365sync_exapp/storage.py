@@ -13,7 +13,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from typing import Iterable
 
-from nc_py_api.ex_app import NextcloudApp
+from nc_py_api import NextcloudApp
 
 
 def _nc():
