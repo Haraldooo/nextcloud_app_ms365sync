@@ -17,26 +17,14 @@ function mount() {
         || document.body
     const host = document.createElement('div')
     host.id = 'ms365sync'
-    // Fill the parent #content cell exactly — Nextcloud already positions
-    // its #content below the top navbar with the standard left/right
-    // gutters, so we want to occupy that box completely. #content has no
-    // intrinsic height in the AppAPI embedded template, so anchor the
-    // host with position:absolute inset:0 against a relatively-positioned
-    // parent.
-    if (target instanceof HTMLElement) {
-        const cs = getComputedStyle(target)
-        if (cs.position === 'static') {
-            target.style.position = 'relative'
-        }
-    }
-    host.style.position = 'absolute'
-    host.style.top = '0'
-    host.style.left = '0'
-    host.style.right = '0'
-    host.style.bottom = '0'
+    // Nextcloud's outer #content is already sized + positioned correctly
+    // (margin, header offset, body width/height, border-radius, flex
+    // container). Just stretch as a flex child inside it.
+    host.style.flex = '1 1 auto'
+    host.style.minWidth = '0'
+    host.style.minHeight = '0'
     host.style.display = 'flex'
     host.style.flexDirection = 'column'
-    host.style.minHeight = '0'
     target.appendChild(host)
 
     const app = createApp(App)

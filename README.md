@@ -18,7 +18,7 @@ Built on the Nextcloud AppAPI framework: a single, stateless, versioned Docker i
 
 ```
 ┌────── Single Docker image (ghcr.io/<org>/ms365sync-exapp:<ver>) ──────┐
-│  Python 3.12 + nc_py_api + FastAPI + rclone (child process)           │
+│  Python 3.14 (uv-managed) + nc_py_api + FastAPI + rclone (child proc) │
 │   ms365sync_exapp/        ← Python ExApp                              │
 │     main.py               ← FastAPI + AppAPI lifecycle                │
 │     storage.py            ← state in NC appconfig_ex (stateless app)  │
@@ -32,6 +32,15 @@ Built on the Nextcloud AppAPI framework: a single, stateless, versioned Docker i
 ```
 
 All persistence (tenants, jobs, config) lives in Nextcloud's app config via `nc_py_api` — the container itself stores nothing on disk. Updates work by `app_api:app:deploy`-ing a new image tag; AppAPI handles the container lifecycle.
+
+### Deploy daemons: docker-socket-proxy and HaRP
+
+The image is deploy-daemon-agnostic and works with both AppAPI deploy daemons:
+
+- **docker-socket-proxy** (classic): AppAPI spawns the container via the docker socket proxy and Nextcloud connects **inbound** to the ExApp on `APP_HOST:APP_PORT` (8080 by default — see [Dockerfile](Dockerfile)).
+- **[HaRP](https://github.com/nextcloud/HaRP)** (Nextcloud 30+): a HAProxy-based router that talks to the ExApp over a **Unix socket** instead of TCP. When AppAPI sets `HP_SHARED_KEY` in the container env, [`run_app()`](ms365sync_exapp/main.py#L108) (from `nc_py_api.ex_app`) automatically binds uvicorn to `HP_EXAPP_SOCK` (default `/tmp/exapp.sock`) instead of `APP_HOST:APP_PORT`. HaRP's HAProxy validates its shared key at the edge and forwards the standard `EX-APP-ID` / `AUTHORIZATION-APP-API` / `AA-REQUEST-ID` headers — which `AppAPIAuthMiddleware` already validates the same way as in the docker-socket-proxy mode. No application-side changes are required.
+
+In short: HaRP compatibility is provided by `nc_py_api[app] >= 0.21` (see [pyproject.toml](pyproject.toml)). The route handlers, auth middleware, and `appconfig_ex` storage are identical in both modes.
 
 ## Publishing the image to ghcr.io
 
@@ -103,7 +112,19 @@ Tenants and jobs survive updates because they live in Nextcloud, not in the cont
 
 ## Development
 
+Python deps are managed by [uv](https://docs.astral.sh/uv/) (locked in `uv.lock`, Python 3.14). The Dockerfile uses the same lockfile via `uv sync --frozen`.
+
 ```bash
+# Python: install/sync the project venv (.venv) from uv.lock
+uv sync
+
+# Run the ExApp locally (uses .venv automatically)
+uv run python -m ms365sync_exapp.main
+
+# Add / upgrade a dependency
+uv add 'somepkg>=1.2'
+uv lock --upgrade-package somepkg
+
 # Frontend dev server (talks to a running ExApp at /api/v1)
 npm install
 npm run dev

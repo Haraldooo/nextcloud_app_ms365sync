@@ -6,12 +6,15 @@ build-backend = "setuptools.build_meta"
 name = "ms365sync_exapp"
 version = "1.0.15"
 description = "Microsoft 365 → Nextcloud sync, packaged as a Nextcloud ExApp (AppAPI)."
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 dependencies = [
     # nc_py_api: pinned to a tested-against minor range. The set_handlers /
     # appconfig_ex / ui.resources surfaces have shifted between minors, so
     # widening this is risky without re-verifying the enable flow.
-    "nc_py_api[app]>=0.20,<0.22",
+    # >=0.21 is required for HaRP support: when HP_SHARED_KEY is set,
+    # run_app() binds uvicorn to HP_EXAPP_SOCK (Unix socket) instead of
+    # APP_HOST:APP_PORT, which is what HaRP's HAProxy connects to.
+    "nc_py_api[app]>=0.21,<0.31",
     "fastapi>=0.110,<0.116",
     "uvicorn>=0.27,<0.32",
     "httpx>=0.27,<0.29",
