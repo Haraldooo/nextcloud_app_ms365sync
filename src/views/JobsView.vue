@@ -2,7 +2,7 @@
     <div class="jobs-view">
         <div class="jobs-header">
             <h2>Sync Jobs</h2>
-            <NcButton type="primary" :to="{ name: 'add-job' }">
+            <NcButton type="primary" @click="$router.push({ name: 'add-job' })">
                 Add Job
             </NcButton>
         </div>
@@ -13,7 +13,7 @@
 
         <div v-else-if="jobs.length === 0" class="empty-state">
             <p>No sync jobs configured yet.</p>
-            <NcButton type="primary" :to="{ name: 'add-job' }">
+            <NcButton type="primary" @click="$router.push({ name: 'add-job' })">
                 Create your first sync job
             </NcButton>
         </div>

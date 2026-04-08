@@ -17,13 +17,26 @@ function mount() {
         || document.body
     const host = document.createElement('div')
     host.id = 'ms365sync'
-    // #content has no intrinsic height in the embedded template, so the
-    // 100%-height flex layout in App.vue would collapse to 0px. Pin the
-    // host to the viewport-minus-header height instead.
-    host.style.height = 'calc(100vh - var(--header-height, 50px))'
-    host.style.minHeight = '0'
+    // Fill the parent #content cell exactly — Nextcloud already positions
+    // its #content below the top navbar with the standard left/right
+    // gutters, so we want to occupy that box completely. #content has no
+    // intrinsic height in the AppAPI embedded template, so anchor the
+    // host with position:absolute inset:0 against a relatively-positioned
+    // parent.
+    if (target instanceof HTMLElement) {
+        const cs = getComputedStyle(target)
+        if (cs.position === 'static') {
+            target.style.position = 'relative'
+        }
+    }
+    host.style.position = 'absolute'
+    host.style.top = '0'
+    host.style.left = '0'
+    host.style.right = '0'
+    host.style.bottom = '0'
     host.style.display = 'flex'
     host.style.flexDirection = 'column'
+    host.style.minHeight = '0'
     target.appendChild(host)
 
     const app = createApp(App)
