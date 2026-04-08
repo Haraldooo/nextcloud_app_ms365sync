@@ -5,7 +5,7 @@
     <name>Microsoft 365 Sync</name>
     <summary>Sync OneDrive and SharePoint into Nextcloud</summary>
     <description><![CDATA[Sync OneDrive and SharePoint document libraries into Nextcloud via rclone. Packaged as a Nextcloud External App (AppAPI).]]></description>
-    <version>1.0.14</version>
+    <version>1.0.15</version>
     <licence>agpl</licence>
     <author>sib.io</author>
     <namespace>MS365Sync</namespace>
@@ -19,7 +19,7 @@
         <docker-install>
             <registry>ghcr.io</registry>
             <image>haraldooo/ms365sync-exapp</image>
-            <image-tag>1.0.14</image-tag>
+            <image-tag>1.0.15</image-tag>
         </docker-install>
         <scopes>
             <value>FILES</value>
