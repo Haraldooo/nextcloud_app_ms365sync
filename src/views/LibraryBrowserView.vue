@@ -47,6 +47,17 @@
                 @select-drive="selectDrive"
                 @expand-item="expandItem" />
 
+            <div v-if="selectedDrive" class="selected-source-banner">
+                <span class="selected-source-label">Selected source</span>
+                <strong class="selected-source-name">{{ selectedDrive.name }}</strong>
+                <span class="selected-source-meta">
+                    {{ selectedDrive.parentType === 'site' ? 'SharePoint site' : 'OneDrive' }}
+                </span>
+            </div>
+            <div v-else class="selected-source-banner empty">
+                No source selected yet — pick a drive above.
+            </div>
+
             <div class="step-actions">
                 <NcButton @click="step = 1">Back</NcButton>
                 <NcButton type="primary" :disabled="!selectedDrive" @click="step = 3">
@@ -529,6 +540,39 @@ onMounted(async () => {
     font-size: 13px;
     padding-top: 4px;
     border-top: 1px dashed var(--color-border, #eee);
+}
+.selected-source-banner {
+    position: sticky;
+    bottom: 0;
+    margin-top: 16px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: var(--color-primary-element-light, #e7f1fb);
+    border: 2px solid var(--color-primary, #5186D7);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.selected-source-banner.empty {
+    background: var(--color-background-dark);
+    border: 1px dashed var(--color-border, #ddd);
+    color: var(--color-text-maxcontrast);
+    font-size: 13px;
+}
+.selected-source-label {
+    text-transform: uppercase;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    color: var(--color-primary, #5186D7);
+}
+.selected-source-name {
+    font-size: 16px;
+}
+.selected-source-meta {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
 }
 .error-alert {
     margin-top: 12px;

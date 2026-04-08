@@ -242,7 +242,33 @@ class RcloneManager:
             return ""
         with LOG_FILE.open("r") as f:
             data = f.readlines()
+        # rclone log lines are not tagged with the _group / jobid, so we
+        # can't filter by needle. Instead, when a specific job is asked
+        # for and is currently active, slice the log by timestamp from
+        # when that job started. For finished/unknown jobs we just return
+        # the tail of the whole daemon log.
         if nc_job_id is not None:
-            needle = f"job/{nc_job_id}"
-            data = [line for line in data if needle in line]
+            info = self._active.get(nc_job_id)
+            if info and info.get("started_at"):
+                try:
+                    started = datetime.fromisoformat(info["started_at"])
+                except ValueError:
+                    started = None
+                if started is not None:
+                    filtered: list[str] = []
+                    keep = False
+                    for line in data:
+                        # rclone format: "2024/01/15 12:34:56 INFO  : ..."
+                        ts = line[:19]
+                        try:
+                            line_dt = datetime.strptime(ts, "%Y/%m/%d %H:%M:%S").replace(
+                                tzinfo=timezone.utc
+                            )
+                            keep = line_dt >= started
+                        except ValueError:
+                            # continuation line — inherit previous decision
+                            pass
+                        if keep:
+                            filtered.append(line)
+                    data = filtered
         return "".join(data[-lines:])
