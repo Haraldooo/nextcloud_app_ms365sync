@@ -3,12 +3,16 @@ import App from './App.vue'
 import router from './router.js'
 
 function mount() {
-    // AppAPI's embedded.php template (rendered when the user clicks the
-    // top-menu entry registered via nc.ui.top_menu.register) only contains
-    // <div id="content"></div>. The standalone dev page in index.html uses
-    // #app-content. Fall back to <body> for any other host so the bundle
-    // still surfaces *something* during local builds.
-    const target = document.getElementById('content')
+    // AppAPI's embedded.php template stamps a <div id="content"></div>
+    // INSIDE Nextcloud's own outer <div id="content" class="app-app_api">,
+    // so the page ends up with two elements sharing the id. document
+    // .getElementById returns the first in tree order (the outer one),
+    // which is fine to mount into, but be explicit about the inner empty
+    // slot when it exists so we sit where AppAPI intended. Fall back to
+    // #app-content (the standalone dev page in index.html) and finally
+    // <body> for any other host.
+    const target = document.querySelector('.app-app_api > #content')
+        || document.getElementById('content')
         || document.getElementById('app-content')
         || document.body
     const host = document.createElement('div')

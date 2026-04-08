@@ -7,6 +7,15 @@ import { resolve } from 'path'
 // Nextcloud-rendered top-menu page via nc.ui.resources.set_script/set_style.
 export default defineConfig({
     plugins: [vue()],
+    // Vite's `lib` mode does NOT replace `process.env.NODE_ENV` the way app
+    // mode does, so Vue 3 / vue-router / @nextcloud/axios end up shipping a
+    // literal `process.env.NODE_ENV` reference that throws
+    // `ReferenceError: process is not defined` the moment the IIFE runs in
+    // the browser. Stub it out at compile time.
+    define: {
+        'process.env.NODE_ENV': JSON.stringify('production'),
+        'process.env': '{}',
+    },
     build: {
         outDir: 'dist',
         emptyOutDir: true,
