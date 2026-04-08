@@ -13,6 +13,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from nc_py_api import AsyncNextcloudApp
 from nc_py_api.ex_app import (
     AppAPIAuthMiddleware,
     LogLvl,
@@ -64,25 +65,30 @@ APP.include_router(logs.router, prefix="/api/v1/logs", tags=["logs"])
 APP.include_router(destinations.router, prefix="/api/v1/destinations", tags=["destinations"])
 
 
-def _enabled_handler(enabled: bool, nc) -> str:
-    """AppAPI calls this on enable/disable. Return "" on success."""
+async def _enabled_handler(enabled: bool, nc: AsyncNextcloudApp) -> str:
+    """AppAPI calls this on enable/disable. Return "" on success.
+
+    Must be async — sync handlers are deprecated in nc_py_api 0.30 and
+    removed in 0.31. The async path passes an AsyncNextcloudApp, so the
+    nc.log / nc.ui.* calls below are awaitable HTTP roundtrips.
+    """
     try:
         if enabled:
-            nc.log(LogLvl.INFO, "ms365sync enabled")
+            await nc.log(LogLvl.INFO, "ms365sync enabled")
             # Register the self-mounting SPA bundle + its stylesheet.
             # AppAPI injects these into the Nextcloud-rendered top-menu page.
             # NB: AppAPI appends ".js"/".css" to these paths automatically,
             # so do NOT include the extension here.
-            nc.ui.resources.set_script("top_menu", "ms365sync", "js/ms365sync")
-            nc.ui.resources.set_style("top_menu", "ms365sync", "css/ms365sync")
-            nc.ui.top_menu.register(
+            await nc.ui.resources.set_script("top_menu", "ms365sync", "js/ms365sync")
+            await nc.ui.resources.set_style("top_menu", "ms365sync", "css/ms365sync")
+            await nc.ui.top_menu.register(
                 name="ms365sync",
                 display_name="Microsoft 365 Sync",
                 admin_required=True,
             )
         else:
-            nc.log(LogLvl.INFO, "ms365sync disabled")
-            nc.ui.top_menu.unregister("ms365sync")
+            await nc.log(LogLvl.INFO, "ms365sync disabled")
+            await nc.ui.top_menu.unregister("ms365sync")
         return ""
     except Exception as exc:  # noqa: BLE001
         return str(exc)
