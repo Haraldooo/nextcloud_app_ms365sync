@@ -30,6 +30,8 @@
     flex-direction: column;
     height: 100%;
     min-height: 0;
+    background: var(--color-main-background, #fff);
+    color: var(--color-main-text, #000);
 }
 .ms365sync-tabs {
     display: flex;
@@ -59,5 +61,7 @@
     flex: 1 1 auto;
     min-height: 0;
     overflow: auto;
+    background: var(--color-main-background, #fff);
+    padding: 16px;
 }
 </style>

@@ -13,7 +13,13 @@ import time
 from dataclasses import asdict, dataclass, field
 from typing import Iterable
 
-from nc_py_api.ex_app import nc_app
+from nc_py_api.ex_app import NextcloudApp
+
+
+def _nc():
+    # nc_app from nc_py_api.ex_app is a FastAPI dependency factory, not an
+    # instance. Instantiate NextcloudApp directly for use outside request scope.
+    return NextcloudApp()
 
 TENANT_INDEX_KEY = "tenants_index"
 TENANT_KEY_PREFIX = "tenant_"
@@ -70,12 +76,11 @@ class SyncJob:
 
 
 def _get(key: str) -> str | None:
-    val = nc_app.appconfig_ex.get_value(key, default=None)
-    return val
+    return _nc().appconfig_ex.get_value(key, default=None)
 
 
 def _set(key: str, value: str) -> None:
-    nc_app.appconfig_ex.set_value(key, value)
+    _nc().appconfig_ex.set_value(key, value)
 
 
 def _delete(key: str) -> None:
@@ -85,7 +90,7 @@ def _delete(key: str) -> None:
     ``delete_values`` (list). Try both rather than swallowing failures
     silently — silent swallowing accumulates dead keys forever.
     """
-    api = nc_app.appconfig_ex
+    api = _nc().appconfig_ex
     if hasattr(api, "delete"):
         api.delete(key)
     elif hasattr(api, "delete_values"):
