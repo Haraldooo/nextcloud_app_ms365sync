@@ -72,7 +72,13 @@ class RcloneManager:
 
     def _call(self, endpoint: str, params: dict | None = None) -> dict:
         resp = httpx.post(f"{RC_URL}/{endpoint}", json=params or {}, timeout=30)
-        resp.raise_for_status()
+        if resp.status_code >= 400:
+            # Surface rclone's own error message instead of an opaque HTTPError.
+            try:
+                err = resp.json().get("error") or resp.text
+            except Exception:  # noqa: BLE001
+                err = resp.text
+            raise RuntimeError(f"rclone {endpoint} failed: {err}")
         return resp.json()
 
     def health(self) -> dict:
@@ -92,6 +98,11 @@ class RcloneManager:
         client_secret: str,
         drive_id: str,
     ) -> None:
+        # App-only auth: rclone's onedrive backend supports client_credentials
+        # mode natively (rclone >= 1.65). With client_credentials=true rclone
+        # mints + refreshes the token itself via the tenant token endpoint, so
+        # we must NOT pass token=""  — that would push it into the interactive
+        # OAuth flow and try to bind a localhost callback inside the container.
         self._call(
             "config/create",
             {
@@ -103,10 +114,9 @@ class RcloneManager:
                     "tenant": tenant_id,
                     "drive_id": drive_id,
                     "drive_type": "business",
-                    "token": "",
-                    "auth_url": f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize",
-                    "token_url": f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token",
+                    "client_credentials": "true",
                 },
+                "opt": {"nonInteractive": True},
             },
         )
 
@@ -127,6 +137,7 @@ class RcloneManager:
                     "user": dest_user,
                     "pass": app_password,
                 },
+                "opt": {"nonInteractive": True},
             },
         )
 

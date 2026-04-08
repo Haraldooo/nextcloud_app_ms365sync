@@ -15,9 +15,16 @@ RUN npm run build
 
 FROM python:3.12-slim AS runtime
 
-# rclone + ca-certs (for HTTPS to Graph + WebDAV)
+# Official rclone (Debian's apt package is too old — we need >= 1.65 for
+# the onedrive backend's client_credentials mode used by app-only auth).
 RUN apt-get update \
- && apt-get install -y --no-install-recommends rclone ca-certificates \
+ && apt-get install -y --no-install-recommends ca-certificates curl unzip \
+ && curl -fsSL https://downloads.rclone.org/rclone-current-linux-amd64.zip -o /tmp/rclone.zip \
+ && unzip -j /tmp/rclone.zip '*/rclone' -d /usr/local/bin/ \
+ && chmod +x /usr/local/bin/rclone \
+ && rm /tmp/rclone.zip \
+ && apt-get purge -y curl unzip \
+ && apt-get autoremove -y \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

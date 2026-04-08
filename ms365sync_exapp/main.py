@@ -23,7 +23,7 @@ from nc_py_api.ex_app import (
 
 from . import storage
 from .rclone.manager import RcloneManager
-from .routes import jobs, libraries, logs, settings
+from .routes import destinations, jobs, libraries, logs, settings
 
 UI_DIR = Path(__file__).parent / "ui"
 
@@ -61,6 +61,7 @@ APP.include_router(settings.router, prefix="/api/v1/settings", tags=["settings"]
 APP.include_router(libraries.router, prefix="/api/v1/libraries", tags=["libraries"])
 APP.include_router(jobs.router, prefix="/api/v1/jobs", tags=["jobs"])
 APP.include_router(logs.router, prefix="/api/v1/logs", tags=["logs"])
+APP.include_router(destinations.router, prefix="/api/v1/destinations", tags=["destinations"])
 
 
 def _enabled_handler(enabled: bool, nc) -> str:

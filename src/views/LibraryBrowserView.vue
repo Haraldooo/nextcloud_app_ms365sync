@@ -75,7 +75,38 @@
 
             <div class="form-group">
                 <label>Destination Path</label>
-                <NcTextField v-model="destPath" placeholder="/MS365/SharePoint/MySite" />
+                <div class="dest-picker">
+                    <div class="dest-toolbar">
+                        <NcButton :disabled="!destUser || destBrowsing" @click="loadDestRoot">
+                            {{ destEntries.length || destBrowseError ? 'Refresh' : 'Browse' }}
+                        </NcButton>
+                        <span class="dest-breadcrumbs">
+                            <a href="#" @click.prevent="navigateDest('/')">~</a>
+                            <template v-for="(seg, i) in destCrumbs" :key="i">
+                                <span>/</span>
+                                <a href="#" @click.prevent="navigateDest(crumbPath(i))">{{ seg }}</a>
+                            </template>
+                        </span>
+                    </div>
+                    <div v-if="destBrowsing" class="dest-loading">Loading…</div>
+                    <div v-else-if="destBrowseError" class="error-alert">{{ destBrowseError }}</div>
+                    <ul v-else-if="destEntries.length" class="dest-list">
+                        <li v-for="e in destEntries" :key="e.path"
+                            class="dest-item"
+                            @click="navigateDest(e.path)">
+                            📁 {{ e.name }}
+                        </li>
+                    </ul>
+                    <div v-else-if="destPath" class="dest-empty">
+                        (empty folder — files will be created here)
+                    </div>
+                    <div class="dest-current">
+                        Selected: <code>{{ destPath || '/' }}</code>
+                        <NcButton v-if="destPath && destPath !== '/'" @click="destPath = '/'">
+                            Reset
+                        </NcButton>
+                    </div>
+                </div>
             </div>
 
             <div class="form-group">
@@ -146,6 +177,7 @@ import NcTextField from '@nextcloud/vue/components/NcTextField'
 import LibraryList from '../components/LibraryList.vue'
 import {
     listTenants, listSites, listSiteDrives, listUsers, listUserDrives, createJob,
+    browseDestination,
 } from '../services/api.js'
 
 const router = useRouter()
@@ -165,6 +197,41 @@ const schedule = ref('manual')
 const jobName = ref('')
 const creating = ref(false)
 const error = ref('')
+
+// Destination browser state
+const destEntries = ref([])
+const destBrowsing = ref(false)
+const destBrowseError = ref('')
+const destCrumbs = computed(() =>
+    destPath.value && destPath.value !== '/'
+        ? destPath.value.split('/').filter(Boolean)
+        : [],
+)
+function crumbPath(i) {
+    return '/' + destCrumbs.value.slice(0, i + 1).join('/')
+}
+async function loadDestRoot() {
+    destPath.value = '/'
+    await navigateDest('/')
+}
+async function navigateDest(path) {
+    if (!destUser.value) {
+        destBrowseError.value = 'Enter a destination user first'
+        return
+    }
+    destBrowsing.value = true
+    destBrowseError.value = ''
+    try {
+        const res = await browseDestination(destUser.value, path)
+        destPath.value = res.data.path
+        destEntries.value = res.data.entries
+    } catch (e) {
+        destBrowseError.value = e.response?.data?.detail || 'Failed to browse destination'
+        destEntries.value = []
+    } finally {
+        destBrowsing.value = false
+    }
+}
 
 const defaultJobName = computed(() => {
     if (selectedDrive.value) {
@@ -373,6 +440,58 @@ onMounted(async () => {
     text-align: center;
     padding: 40px;
     color: var(--color-text-maxcontrast);
+}
+.dest-picker {
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: 6px;
+    padding: 8px;
+    background: var(--color-main-background, #fff);
+}
+.dest-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.dest-breadcrumbs {
+    font-family: monospace;
+    font-size: 13px;
+}
+.dest-breadcrumbs a {
+    color: var(--color-primary, #5186D7);
+    text-decoration: none;
+}
+.dest-breadcrumbs a:hover {
+    text-decoration: underline;
+}
+.dest-list {
+    list-style: none;
+    margin: 0 0 8px 0;
+    padding: 0;
+    max-height: 240px;
+    overflow: auto;
+    border: 1px solid var(--color-border, #eee);
+    border-radius: 4px;
+}
+.dest-item {
+    padding: 6px 10px;
+    cursor: pointer;
+}
+.dest-item:hover {
+    background: var(--color-background-hover, #f5f5f5);
+}
+.dest-loading, .dest-empty {
+    padding: 8px;
+    color: var(--color-text-maxcontrast, #777);
+    font-size: 13px;
+}
+.dest-current {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    padding-top: 4px;
+    border-top: 1px dashed var(--color-border, #eee);
 }
 .error-alert {
     margin-top: 12px;
