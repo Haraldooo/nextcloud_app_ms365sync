@@ -5,18 +5,25 @@
         <!-- Connection Settings -->
         <div class="section">
             <h3>Connection</h3>
+            <p class="hint">
+                The Nextcloud URL is auto-detected from the AppAPI environment
+                (<code>NEXTCLOUD_URL</code>). Only set an override if rclone
+                inside the container needs to reach Nextcloud at a different
+                address than what AppAPI provides.
+            </p>
             <div class="form-group">
-                <label for="nextcloud-url">Nextcloud URL (external, as seen by the container)</label>
-                <NcTextField id="nextcloud-url"
-                    v-model="nextcloudUrl"
-                    placeholder="https://cloud.example.com"
-                    :disabled="savingContainer" />
+                <label>Detected Nextcloud URL</label>
+                <div class="readonly-field">{{ nextcloudUrlDetected || '(not set)' }}</div>
             </div>
             <div class="form-group">
-                <label for="container-url">Rclone Container URL</label>
-                <NcTextField id="container-url"
-                    v-model="containerUrl"
-                    placeholder="http://localhost:8080"
+                <label>Effective Nextcloud URL</label>
+                <div class="readonly-field">{{ nextcloudUrlEffective || '(not set)' }}</div>
+            </div>
+            <div class="form-group">
+                <label for="nextcloud-url">Override (optional)</label>
+                <NcTextField id="nextcloud-url"
+                    v-model="nextcloudUrl"
+                    placeholder="Leave empty to use detected URL"
                     :disabled="savingContainer" />
             </div>
             <NcButton type="primary"
@@ -25,7 +32,7 @@
                 <template #icon>
                     <span v-if="savingContainer" class="icon-loading-small" />
                 </template>
-                Save
+                Save Override
             </NcButton>
         </div>
 
@@ -140,8 +147,9 @@ import {
 } from '../services/api.js'
 
 const tenants = ref([])
-const containerUrl = ref('')
 const nextcloudUrl = ref('')
+const nextcloudUrlDetected = ref('')
+const nextcloudUrlEffective = ref('')
 const savingContainer = ref(false)
 const saving = ref(false)
 const testingId = ref(null)
@@ -168,8 +176,9 @@ async function loadData() {
             listAppPasswords(),
         ])
         tenants.value = tenantsRes.data
-        containerUrl.value = containerRes.data.url || ''
         nextcloudUrl.value = containerRes.data.nextcloudUrl || ''
+        nextcloudUrlDetected.value = containerRes.data.nextcloudUrlDetected || ''
+        nextcloudUrlEffective.value = containerRes.data.nextcloudUrlEffective || ''
         appPasswords.value = appPwRes.data
     } catch (e) {
         error.value = 'Failed to load settings'
@@ -206,7 +215,9 @@ async function removeAppPassword(user) {
 async function saveContainerUrl() {
     savingContainer.value = true
     try {
-        await setContainerConfig(containerUrl.value, nextcloudUrl.value)
+        const res = await setContainerConfig(nextcloudUrl.value)
+        nextcloudUrlDetected.value = res.data.nextcloudUrlDetected || ''
+        nextcloudUrlEffective.value = res.data.nextcloudUrlEffective || ''
     } catch (e) {
         error.value = 'Failed to save connection settings'
     } finally {
@@ -395,6 +406,21 @@ onMounted(loadData)
 }
 .hint {
     margin-top: 8px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: var(--color-text-maxcontrast);
+}
+.hint code {
+    background: var(--color-background-dark);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+.readonly-field {
+    padding: 6px 10px;
+    background: var(--color-background-dark);
+    border-radius: 4px;
+    font-family: monospace;
     font-size: 13px;
     color: var(--color-text-maxcontrast);
 }

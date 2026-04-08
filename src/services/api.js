@@ -30,8 +30,8 @@ export function testTenantConnection(id) {
 export function getContainerConfig() {
     return axios.get(`${baseUrl}/settings/container`)
 }
-export function setContainerConfig(url, nextcloudUrl) {
-    return axios.put(`${baseUrl}/settings/container`, { url, nextcloudUrl })
+export function setContainerConfig(nextcloudUrl) {
+    return axios.put(`${baseUrl}/settings/container`, { nextcloudUrl })
 }
 
 // --- App Passwords (per WebDAV destination user) ---
@@ -63,6 +63,9 @@ export function listUserDrives(tenantId, userId) {
 }
 
 // --- Destinations (Nextcloud user file tree via WebDAV) ---
+export function listNextcloudUsers() {
+    return axios.get(`${baseUrl}/destinations/users`)
+}
 export function browseDestination(user, path = '/') {
     return axios.get(`${baseUrl}/destinations/${encodeURIComponent(user)}/browse`, {
         params: { path },

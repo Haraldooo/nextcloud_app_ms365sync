@@ -13,6 +13,7 @@ from xml.etree import ElementTree as ET
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query
+from nc_py_api import NextcloudApp
 
 from .. import storage
 
@@ -41,12 +42,34 @@ def _normalize(path: str) -> str:
     return path
 
 
+@router.get("/users")
+def list_nextcloud_users():
+    """Return all Nextcloud users, flagging which already have an app password.
+
+    The Vue UI uses this to populate the destination-user dropdown in the
+    Add-Job wizard, so an admin can pick any existing Nextcloud user as the
+    sync target rather than typing the user id by hand.
+    """
+    try:
+        ids = NextcloudApp().users_list()
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(500, f"failed to list Nextcloud users: {exc}") from exc
+    configured = set(storage.list_app_password_users())
+    return [
+        {"id": uid, "hasAppPassword": uid in configured}
+        for uid in sorted(ids)
+    ]
+
+
 @router.get("/{user}/browse")
 def browse(user: str, path: str = Query("/")):
-    cfg = storage.get_container_config()
-    nc_url = (cfg.get("nextcloudUrl") or "").rstrip("/")
+    nc_url = storage.resolve_nextcloud_url()
     if not nc_url:
-        raise HTTPException(400, "container nextcloudUrl not configured")
+        raise HTTPException(
+            400,
+            "Could not determine Nextcloud URL: NEXTCLOUD_URL env var is not "
+            "set and no override is configured in Settings.",
+        )
 
     app_password = storage.get_app_password(user)
     if not app_password:

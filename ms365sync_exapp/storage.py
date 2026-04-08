@@ -9,6 +9,7 @@ keeps the list of ids so we can enumerate without scanning.
 from __future__ import annotations
 
 import json
+import os
 import time
 from dataclasses import asdict, dataclass, field
 from typing import Iterable
@@ -206,6 +207,33 @@ def get_container_config() -> dict:
 def set_container_config(cfg: dict) -> dict:
     _set(CONTAINER_CFG_KEY, json.dumps(cfg))
     return cfg
+
+
+def detect_nextcloud_url() -> str:
+    """Best-effort auto-detection of the Nextcloud base URL.
+
+    AppAPI sets ``NEXTCLOUD_URL`` inside every ExApp container — that is the
+    URL the container can use to reach Nextcloud (and rclone needs to push
+    files via WebDAV). Fall back to a couple of legacy/alternative env vars
+    just in case the runtime exposes a different name.
+    """
+    for var in ("NEXTCLOUD_URL", "NC_URL", "NEXTCLOUD_BASE_URL"):
+        val = os.environ.get(var)
+        if val:
+            return val.rstrip("/")
+    return ""
+
+
+def resolve_nextcloud_url() -> str:
+    """Return the effective Nextcloud URL.
+
+    Operator override (set in Settings) wins; otherwise auto-detect.
+    """
+    cfg = get_container_config()
+    override = (cfg.get("nextcloudUrl") or "").strip()
+    if override:
+        return override.rstrip("/")
+    return detect_nextcloud_url()
 
 
 # ---------------------------------------------------------------------------

@@ -20,7 +20,8 @@ class TenantIn(BaseModel):
 
 
 class ContainerCfgIn(BaseModel):
-    url: str | None = None
+    # Optional override; leave empty to use the auto-detected NEXTCLOUD_URL
+    # that AppAPI provides to the container.
     nextcloudUrl: str | None = None
 
 
@@ -101,19 +102,24 @@ def test_tenant(tid: int):
 @router.get("/container")
 def get_container():
     cfg = storage.get_container_config()
-    cfg.setdefault("url", "")
-    cfg.setdefault("nextcloudUrl", "")
-    return cfg
+    override = (cfg.get("nextcloudUrl") or "").strip()
+    detected = storage.detect_nextcloud_url()
+    return {
+        # Operator override (empty string means "use detected").
+        "nextcloudUrl": override,
+        # What we'll actually use, so the UI can show it.
+        "nextcloudUrlEffective": override or detected,
+        "nextcloudUrlDetected": detected,
+    }
 
 
 @router.put("/container")
 def set_container(body: ContainerCfgIn):
     cfg = storage.get_container_config()
-    if body.url is not None:
-        cfg["url"] = body.url
     if body.nextcloudUrl is not None:
-        cfg["nextcloudUrl"] = body.nextcloudUrl
-    return storage.set_container_config(cfg)
+        cfg["nextcloudUrl"] = body.nextcloudUrl.strip()
+    storage.set_container_config(cfg)
+    return get_container()
 
 
 # ----- Per-user WebDAV app passwords ----------------------------------------

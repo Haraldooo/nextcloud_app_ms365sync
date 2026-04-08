@@ -41,10 +41,15 @@
 
                 <div class="detail-section">
                     <h3>Transfer Progress</h3>
-                    <ProgressBar :bytes="progress.bytesTransferred || 0"
-                        :files="progress.filesTransferred || 0"
+                    <ProgressBar :bytes="progress.bytesTransferred ?? job.bytesTransferred ?? 0"
+                        :total-bytes="progress.totalBytes || 0"
+                        :files="progress.filesTransferred ?? job.filesTransferred ?? 0"
                         :speed="progress.speed || 0"
                         :eta="progress.eta || 0" />
+                    <div class="progress-meta">
+                        <span>State: {{ progress.status || job.status }}</span>
+                        <span v-if="progress.error" class="progress-error">{{ progress.error }}</span>
+                    </div>
                 </div>
             </div>
 
@@ -99,15 +104,21 @@ async function loadJob() {
 }
 
 async function pollProgress() {
-    if (job.value?.status !== 'running') return
+    if (!job.value) return
     try {
         const res = await getJobProgress(props.id)
-        progress.value = res.data
-        if (res.data.status) {
+        progress.value = res.data || {}
+        if (res.data?.status) {
             job.value.status = res.data.status
         }
+        if (typeof res.data?.bytesTransferred === 'number') {
+            job.value.bytesTransferred = res.data.bytesTransferred
+        }
+        if (typeof res.data?.filesTransferred === 'number') {
+            job.value.filesTransferred = res.data.filesTransferred
+        }
     } catch (e) {
-        // ignore
+        // ignore — keep showing the last known progress
     }
 }
 
@@ -115,6 +126,9 @@ async function onStart() {
     try {
         const res = await startJob(props.id)
         job.value = res.data
+        progress.value = {}
+        // Pick up live counters immediately rather than waiting a full interval.
+        pollProgress()
     } catch (e) {
         // handle
     }
@@ -137,7 +151,10 @@ async function onDelete() {
 
 onMounted(async () => {
     await loadJob()
-    pollInterval = setInterval(pollProgress, 5000)
+    // Fetch progress once on mount so the UI shows last-known stats even if
+    // the job isn't currently running, then poll for live updates.
+    pollProgress()
+    pollInterval = setInterval(pollProgress, 2000)
 })
 
 onUnmounted(() => {
@@ -209,5 +226,16 @@ onUnmounted(() => {
 .loading {
     text-align: center;
     padding: 40px;
+}
+.progress-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    margin-top: 6px;
+}
+.progress-error {
+    color: var(--color-error);
 }
 </style>

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import time
-from dataclasses import asdict
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
@@ -11,6 +10,33 @@ from pydantic import BaseModel
 from .. import storage
 
 router = APIRouter()
+
+
+def _to_out(j: storage.SyncJob) -> dict:
+    """Serialize a SyncJob into the camelCase shape the Vue UI expects."""
+    return {
+        "id": j.id,
+        "tenantId": j.tenant_id,
+        "name": j.name,
+        "sourceType": j.source_type,
+        "sourceDriveId": j.source_drive_id,
+        "sourceDriveName": j.source_drive_name,
+        "sourceSiteId": j.source_site_id,
+        "destType": "nextcloud",
+        "destPath": j.dest_path,
+        "destUser": j.dest_user,
+        "syncMode": j.sync_mode,
+        "schedule": j.schedule,
+        "status": j.status,
+        "lastRunAt": j.last_run_at,
+        "lastError": j.last_error,
+        "bytesTransferred": j.bytes_transferred,
+        "filesTransferred": j.files_transferred,
+        "rcloneJobId": j.rclone_job_id,
+        "enabled": j.enabled,
+        "createdAt": j.created_at,
+        "updatedAt": j.updated_at,
+    }
 
 
 class JobIn(BaseModel):
@@ -52,7 +78,7 @@ def _from_in(j: storage.SyncJob | None, body: JobIn) -> storage.SyncJob:
 
 @router.get("")
 def list_jobs():
-    return [asdict(j) for j in storage.list_jobs()]
+    return [_to_out(j) for j in storage.list_jobs()]
 
 
 @router.get("/{jid}")
@@ -60,13 +86,13 @@ def get_job(jid: int):
     j = storage.get_job(jid)
     if not j:
         raise HTTPException(404, "job not found")
-    return asdict(j)
+    return _to_out(j)
 
 
 @router.post("")
 def create_job(body: JobIn):
     j = storage.save_job(_from_in(None, body))
-    return asdict(j)
+    return _to_out(j)
 
 
 @router.put("/{jid}")
@@ -75,7 +101,7 @@ def update_job(jid: int, body: JobIn):
     if not j:
         raise HTTPException(404, "job not found")
     j = storage.save_job(_from_in(j, body))
-    return asdict(j)
+    return _to_out(j)
 
 
 @router.delete("/{jid}")
@@ -93,10 +119,13 @@ def start_job(jid: int, request: Request):
     if not tenant:
         raise HTTPException(400, "tenant missing")
 
-    cfg = storage.get_container_config()
-    nc_url = cfg.get("nextcloudUrl") or ""
+    nc_url = storage.resolve_nextcloud_url()
     if not nc_url:
-        raise HTTPException(400, "container nextcloudUrl not configured")
+        raise HTTPException(
+            400,
+            "Could not determine Nextcloud URL: NEXTCLOUD_URL env var is not "
+            "set and no override is configured in Settings.",
+        )
 
     # The destination app password is provisioned by the operator via the
     # Settings UI (PUT /api/v1/settings/app-passwords) and stored per user.
@@ -133,7 +162,7 @@ def start_job(jid: int, request: Request):
     j.last_run_at = time.time()
     j.last_error = ""
     storage.save_job(j)
-    return asdict(j)
+    return _to_out(j)
 
 
 @router.post("/{jid}/stop")
@@ -145,7 +174,7 @@ def stop_job(jid: int, request: Request):
     j.status = "idle"
     j.rclone_job_id = None
     storage.save_job(j)
-    return asdict(j)
+    return _to_out(j)
 
 
 @router.get("/{jid}/progress")
@@ -153,12 +182,49 @@ def progress(jid: int, request: Request):
     j = storage.get_job(jid)
     if not j:
         raise HTTPException(404, "job not found")
+
+    # If we don't have an active rclone job for it (not running, or restarted),
+    # return the persisted stats so the UI can still show last-known progress.
+    if j.status != "running" or j.rclone_job_id is None:
+        return {
+            "status": j.status,
+            "finished": j.status in ("completed", "error", "idle"),
+            "success": j.status == "completed",
+            "error": j.last_error,
+            "bytesTransferred": j.bytes_transferred,
+            "filesTransferred": j.files_transferred,
+            "totalBytes": 0,
+            "totalFiles": 0,
+            "speed": 0,
+            "eta": 0,
+        }
+
     st = request.app.state.rclone.status(j.id)
+    bytes_xfer = int(st.get("bytes", 0) or 0)
+    files_xfer = int(st.get("files", 0) or 0)
+
     if st.get("finished"):
         j.status = "completed" if st.get("success") else "error"
-        j.last_error = st.get("error", "")
-        j.bytes_transferred = int(st.get("bytes", 0))
-        j.files_transferred = int(st.get("files", 0))
+        j.last_error = st.get("error", "") or ""
+        j.bytes_transferred = bytes_xfer
+        j.files_transferred = files_xfer
         j.rclone_job_id = None
         storage.save_job(j)
-    return st
+    else:
+        # Persist live counters so a refresh shows current progress.
+        j.bytes_transferred = bytes_xfer
+        j.files_transferred = files_xfer
+        storage.save_job(j)
+
+    return {
+        "status": j.status,
+        "finished": bool(st.get("finished", False)),
+        "success": bool(st.get("success", False)),
+        "error": st.get("error", "") or "",
+        "bytesTransferred": bytes_xfer,
+        "filesTransferred": files_xfer,
+        "totalBytes": int(st.get("total_bytes", 0) or 0),
+        "totalFiles": int(st.get("total_files", 0) or 0),
+        "speed": st.get("speed", 0) or 0,
+        "eta": st.get("eta", 0) or 0,
+    }

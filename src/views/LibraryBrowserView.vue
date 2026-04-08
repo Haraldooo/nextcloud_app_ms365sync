@@ -70,7 +70,16 @@
 
             <div class="form-group">
                 <label>Destination User (owner)</label>
-                <NcTextField v-model="destUser" placeholder="admin" />
+                <select v-model="destUser" class="nc-select" :disabled="loadingUsers">
+                    <option value="">{{ loadingUsers ? 'Loading users…' : '— Select a user —' }}</option>
+                    <option v-for="u in ncUsers" :key="u.id" :value="u.id">
+                        {{ u.id }}{{ u.hasAppPassword ? '' : ' (no app password)' }}
+                    </option>
+                </select>
+                <p v-if="destUser && !selectedUserHasPassword" class="hint warning">
+                    No app password is configured for <code>{{ destUser }}</code>. Add one in
+                    Settings → WebDAV App Passwords before starting the job.
+                </p>
             </div>
 
             <div class="form-group">
@@ -177,7 +186,7 @@ import NcTextField from '@nextcloud/vue/components/NcTextField'
 import LibraryList from '../components/LibraryList.vue'
 import {
     listTenants, listSites, listSiteDrives, listUsers, listUserDrives, createJob,
-    browseDestination,
+    browseDestination, listNextcloudUsers,
 } from '../services/api.js'
 
 const router = useRouter()
@@ -192,6 +201,12 @@ const selectedDrive = ref(null)
 const destType = ref('user_files')
 const destPath = ref('')
 const destUser = ref('')
+const ncUsers = ref([])
+const loadingUsers = ref(false)
+const selectedUserHasPassword = computed(() => {
+    const u = ncUsers.value.find(x => x.id === destUser.value)
+    return !!u && u.hasAppPassword
+})
 const syncMode = ref('copy')
 const schedule = ref('manual')
 const jobName = ref('')
@@ -340,6 +355,15 @@ onMounted(async () => {
     } catch (e) {
         error.value = 'Failed to load tenants'
     }
+    loadingUsers.value = true
+    try {
+        const res = await listNextcloudUsers()
+        ncUsers.value = res.data
+    } catch (e) {
+        // Non-fatal: the dropdown will simply be empty.
+    } finally {
+        loadingUsers.value = false
+    }
 })
 </script>
 
@@ -420,6 +444,19 @@ onMounted(async () => {
     border-radius: 4px;
     border: 1px solid var(--color-border-dark);
     background: var(--color-main-background);
+}
+.hint {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+}
+.hint.warning {
+    color: var(--color-warning);
+}
+.hint code {
+    background: var(--color-background-dark);
+    padding: 1px 4px;
+    border-radius: 3px;
 }
 .review-card {
     background: var(--color-background-dark);

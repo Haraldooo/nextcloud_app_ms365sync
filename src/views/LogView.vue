@@ -38,7 +38,8 @@ let pollInterval = null
 async function refresh() {
     try {
         const res = await getJobLog(props.jobId)
-        logContent.value = res.data.log
+        // Backend returns PlainTextResponse, so res.data is the raw string.
+        logContent.value = typeof res.data === 'string' ? res.data : (res.data?.log ?? '')
     } catch (e) {
         logContent.value = 'Failed to load log: ' + e.message
     } finally {
