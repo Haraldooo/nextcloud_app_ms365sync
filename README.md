@@ -37,10 +37,20 @@ All persistence (tenants, jobs, config) lives in Nextcloud's app config via `nc_
 
 The image is deploy-daemon-agnostic and works with both AppAPI deploy daemons:
 
-- **docker-socket-proxy** (classic): AppAPI spawns the container via the docker socket proxy and Nextcloud connects **inbound** to the ExApp on `APP_HOST:APP_PORT` (8080 by default — see [Dockerfile](Dockerfile)).
-- **[HaRP](https://github.com/nextcloud/HaRP)** (Nextcloud 30+): a HAProxy-based router that talks to the ExApp over a **Unix socket** instead of TCP. When AppAPI sets `HP_SHARED_KEY` in the container env, [`run_app()`](ms365sync_exapp/main.py#L108) (from `nc_py_api.ex_app`) automatically binds uvicorn to `HP_EXAPP_SOCK` (default `/tmp/exapp.sock`) instead of `APP_HOST:APP_PORT`. HaRP's HAProxy validates its shared key at the edge and forwards the standard `EX-APP-ID` / `AUTHORIZATION-APP-API` / `AA-REQUEST-ID` headers — which `AppAPIAuthMiddleware` already validates the same way as in the docker-socket-proxy mode. No application-side changes are required.
+- **docker-socket-proxy** (classic): AppAPI spawns the container via the docker socket proxy and Nextcloud connects **inbound** to the ExApp on `APP_HOST:APP_PORT` (8080 by default).
+- **[HaRP](https://github.com/nextcloud/HaRP)** (Nextcloud 30+): a HAProxy + FRP server that ExApp containers reach **outbound**. The traffic path is `NC → HaRP HAProxy → frps → frpc (in this container) → /tmp/exapp.sock → uvicorn`.
 
-In short: HaRP compatibility is provided by `nc_py_api[app] >= 0.21` (see [pyproject.toml](pyproject.toml)). The route handlers, auth middleware, and `appconfig_ex` storage are identical in both modes.
+To support HaRP the image bundles three pieces:
+
+1. **`frpc`** — the FRP client binary, installed multi-arch with SHA256 verification in [Dockerfile](Dockerfile). The pinned version is exposed via the `FRP_VERSION` build arg; bump it in lockstep with HaRP itself.
+2. **[`start.sh`](start.sh)** — vendored from `nextcloud/HaRP/exapps_dev/start.sh`. When `HP_SHARED_KEY` is present in the env it writes `/frpc.toml` (with the `unix_domain_socket` plugin pointed at `/tmp/exapp.sock`), launches `frpc` in the background, and execs the ExApp. When it isn't, it's a transparent passthrough — so the same image still works under docker-socket-proxy.
+3. **`ENTRYPOINT ["/start.sh"]`** with the existing `CMD ["python", "-m", "ms365sync_exapp.main"]`.
+
+On the application side nothing else changes:
+
+- `nc_py_api[app] >= 0.21` (see [pyproject.toml](pyproject.toml)) makes [`run_app()`](ms365sync_exapp/main.py#L108) bind uvicorn to `HP_EXAPP_SOCK` (default `/tmp/exapp.sock`) when `HP_SHARED_KEY` is set, so uvicorn meets `frpc` at the same socket.
+- HaRP terminates the shared-key check at HAProxy and forwards the standard `EX-APP-ID` / `AUTHORIZATION-APP-API` / `AA-REQUEST-ID` headers, which [`AppAPIAuthMiddleware`](ms365sync_exapp/main.py#L58) already validates the same way as under docker-socket-proxy.
+- Route handlers, `appconfig_ex` storage, and the rclone supervisor are identical in both modes.
 
 ## Publishing the image to ghcr.io
 
