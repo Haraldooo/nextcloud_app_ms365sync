@@ -26,7 +26,6 @@ COPY pyproject.toml ./
 RUN pip install --no-cache-dir .
 
 COPY ms365sync_exapp ./ms365sync_exapp
-COPY info.json ./info.json
 COPY --from=ui-build /ui/dist ./ms365sync_exapp/ui
 
 ENV APP_HOST=0.0.0.0 \

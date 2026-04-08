@@ -25,7 +25,9 @@ Built on the Nextcloud AppAPI framework: a single, stateless, versioned Docker i
 │     graph.py              ← Microsoft Graph client                    │
 │     rclone/manager.py     ← embedded rclone rcd supervisor            │
 │     routes/               ← /api/v1 endpoints                         │
-│     ui/                   ← built Vue 3 SPA, served at /ui/           │
+│     ui/                   ← built Vue 3 SPA bundle (ms365sync.js/css) │
+│                             served at /js/ + /css/, injected into     │
+│                             AppAPI's top-menu page via set_script     │
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -52,7 +54,7 @@ The image is published to **GitHub Container Registry** at `ghcr.io/haraldooo/ms
 The `Makefile` bumps every version field and builds a multi-arch image (`linux/amd64` + `linux/arm64`) in one shot:
 
 ```bash
-make release VERSION=1.0.1     # bumps info.xml, info.json, pyproject.toml, package.json
+make release VERSION=1.0.1     # bumps info.xml, pyproject.toml, package.json
 git diff                       # review
 git commit -am "release 1.0.1"
 git tag v1.0.1 && git push --tags

@@ -3,7 +3,7 @@ PLATFORMS := linux/amd64,linux/arm64
 
 .PHONY: release buildx-init build push ship
 
-# Bump version across info.xml, info.json, pyproject.toml, package.json.
+# Bump version across info.xml, pyproject.toml, package.json.
 # Usage: make release VERSION=1.0.1
 release:
 	@test -n "$(VERSION)" || (echo "usage: make release VERSION=x.y.z" && exit 1)
@@ -11,9 +11,6 @@ release:
 p=pathlib.Path('appinfo/info.xml'); \
 p.write_text(re.sub(r'<version>[^<]+</version>', '<version>$(VERSION)</version>', \
             re.sub(r'<image-tag>[^<]+</image-tag>', '<image-tag>$(VERSION)</image-tag>', p.read_text()), count=1))"
-	@python3 -c "import re,pathlib; \
-p=pathlib.Path('info.json'); \
-p.write_text(re.sub(r'\"version\":\s*\"[^\"]+\"', '\"version\": \"$(VERSION)\"', p.read_text(), count=1))"
 	@python3 -c "import re,pathlib; \
 p=pathlib.Path('pyproject.toml'); \
 p.write_text(re.sub(r'^version = \"[^\"]+\"', 'version = \"$(VERSION)\"', p.read_text(), count=1, flags=re.M))"
@@ -51,7 +48,7 @@ ship:
 		echo "ERROR: tag v$(VERSION) already exists"; exit 1; \
 	fi
 	$(MAKE) release VERSION=$(VERSION)
-	git add appinfo/info.xml info.json pyproject.toml package.json
+	git add appinfo/info.xml pyproject.toml package.json
 	git commit -m "Release $(VERSION)"
 	git tag "v$(VERSION)"
 	git push origin HEAD "v$(VERSION)"

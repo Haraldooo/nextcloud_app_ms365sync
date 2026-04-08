@@ -3,7 +3,13 @@
     "allow": [
       "WebSearch",
       "WebFetch(domain:rclone.org)",
-      "WebFetch(domain:docs.nextcloud.com)"
+      "WebFetch(domain:docs.nextcloud.com)",
+      "Bash(git -C /Users/haraldo/Developer/nextcloud_app_ms365sync log --oneline -20)",
+      "Bash(git -C /Users/haraldo/Developer/nextcloud_app_ms365sync show --stat 79b56c8)",
+      "Bash(git -C /Users/haraldo/Developer/nextcloud_app_ms365sync show 0e2378d --stat)",
+      "Bash(gh api:*)",
+      "Bash(python3 -c \"import json,sys; [print\\(f['name'], f['path']\\) for f in json.load\\(sys.stdin\\)]\")",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }
