@@ -32,6 +32,19 @@ export default defineConfig({
             // so externalizing would crash at init. The trade-off is bundle
             // size; that's acceptable for an admin-only ExApp.
             output: {
+                // Belt-and-suspenders shim. The `define` above already
+                // replaces `process.env.NODE_ENV`, but if any transitive dep
+                // accesses bare `process` or `process.X` in a way Vite can't
+                // statically rewrite, the IIFE would still throw
+                // `ReferenceError: process is not defined`. We assign onto
+                // globalThis (rather than `var process = ...`) because the
+                // minifier renames local identifiers — `var process` becomes
+                // `var Be`, defeating the shim. A property assignment on
+                // globalThis can't be renamed (the key is a string), so
+                // `process` becomes a real global available to the rest of
+                // the IIFE. We only set it if missing, so a host page that
+                // already exposes `process` is left alone.
+                intro: 'if (typeof globalThis.process === "undefined") { globalThis.process = { env: { NODE_ENV: "production" } }; }',
                 assetFileNames: (asset) => {
                     if (asset.name && asset.name.endsWith('.css')) {
                         return 'ms365sync.css'
