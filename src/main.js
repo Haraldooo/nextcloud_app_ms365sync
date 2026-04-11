@@ -5,13 +5,12 @@ import router from './router.js'
 function mount() {
     // AppAPI's embedded.php template stamps a <div id="content"></div>
     // INSIDE Nextcloud's own outer <div id="content" class="app-app_api">,
-    // so the page ends up with two elements sharing the id. document
-    // .getElementById returns the first in tree order (the outer one),
-    // which is fine to mount into, but be explicit about the inner empty
-    // slot when it exists so we sit where AppAPI intended. Fall back to
-    // #app-content (the standalone dev page in index.html) and finally
-    // <body> for any other host.
-    const target = document.querySelector('.app-app_api > #content')
+    // creating a duplicate id. Rename the inner one to avoid side-effects.
+    const appApiContent = document.querySelector('.app-app_api > #content')
+    if (appApiContent) {
+        appApiContent.id = 'ms365sync-content'
+    }
+    const target = appApiContent
         || document.getElementById('content')
         || document.getElementById('app-content')
         || document.body
