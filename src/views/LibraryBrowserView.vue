@@ -102,6 +102,10 @@
                                 <a href="#" class="remove-folder" @click.prevent="removeFolder(f)">&#10005;</a>
                             </li>
                         </ul>
+                        <p class="folder-hint">
+                            Each selected folder will be created as a subfolder in the destination.
+                            E.g. selecting "Projects" with destination "/SharePoint" syncs into "/SharePoint/Projects".
+                        </p>
                     </div>
                     <div v-else class="folder-selection-summary empty">
                         Select one or more folders above, or check "Sync entire library".
@@ -854,6 +858,12 @@ onMounted(async () => {
     color: var(--color-error);
     text-decoration: none;
     font-size: 14px;
+}
+.folder-hint {
+    margin: 6px 0 0 0;
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    font-style: italic;
 }
 .review-folders {
     list-style: none;

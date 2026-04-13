@@ -174,7 +174,7 @@ class RcloneManager:
                 endpoint,
                 {
                     "srcFs": f"{src}:{source_path}" if source_path else f"{src}:",
-                    "dstFs": f"{dst}:{dest_path}",
+                    "dstFs": f"{dst}:{dest_path.rstrip('/')}/{source_path.rsplit('/', 1)[-1]}" if source_path else f"{dst}:{dest_path}",
                     "_async": True,
                     "_group": f"job/{nc_job_id}",
                     "_config": {
