@@ -22,6 +22,7 @@ def _to_out(j: storage.SyncJob) -> dict:
         "sourceDriveId": j.source_drive_id,
         "sourceDriveName": j.source_drive_name,
         "sourceSiteId": j.source_site_id,
+        "sourcePath": j.source_path,
         "destType": "nextcloud",
         "destPath": j.dest_path,
         "destUser": j.dest_user,
@@ -46,6 +47,7 @@ class JobIn(BaseModel):
     sourceDriveId: str
     sourceDriveName: str = ""
     sourceSiteId: str | None = None
+    sourcePath: str = ""
     destPath: str = ""
     destUser: str = ""
     syncMode: str = "copy"
@@ -68,6 +70,7 @@ def _from_in(j: storage.SyncJob | None, body: JobIn) -> storage.SyncJob:
     j.source_drive_id = body.sourceDriveId
     j.source_drive_name = body.sourceDriveName
     j.source_site_id = body.sourceSiteId
+    j.source_path = body.sourcePath
     j.dest_path = body.destPath
     j.dest_user = body.destUser
     j.sync_mode = body.syncMode
@@ -148,6 +151,7 @@ def start_job(jid: int, request: Request):
             nextcloud_url=nc_url,
             dest_user=j.dest_user,
             app_password=app_password,
+            source_path=j.source_path,
             dest_path=j.dest_path,
             sync_mode=j.sync_mode,
         )

@@ -58,9 +58,62 @@
                 No source selected yet — pick a drive above.
             </div>
 
+            <!-- Folder selection within selected drive -->
+            <div v-if="selectedDrive" class="folder-selector">
+                <div class="folder-selector-header">
+                    <label class="folder-toggle">
+                        <input type="checkbox" v-model="syncEntireDrive" />
+                        Sync entire library
+                    </label>
+                </div>
+
+                <div v-if="!syncEntireDrive" class="folder-browser">
+                    <div class="folder-breadcrumbs">
+                        <a href="#" @click.prevent="browseFolderRoot">Root</a>
+                        <template v-for="(crumb, i) in folderCrumbs" :key="i">
+                            <span> / </span>
+                            <a href="#" @click.prevent="navigateToFolderCrumb(i)">{{ crumb.name }}</a>
+                        </template>
+                    </div>
+                    <div v-if="loadingFolders" class="folder-loading">Loading folders...</div>
+                    <div v-else-if="folderItems.length === 0" class="folder-empty">
+                        No subfolders found at this level.
+                    </div>
+                    <ul v-else class="folder-list">
+                        <li v-for="folder in folderItems" :key="folder.id" class="folder-item">
+                            <label class="folder-check">
+                                <input type="checkbox"
+                                    :checked="isFolderSelected(folder)"
+                                    @change="toggleFolder(folder)" />
+                                <span class="folder-icon">&#128194;</span>
+                                {{ folder.name }}
+                            </label>
+                            <NcButton type="tertiary" @click.stop="drillIntoFolder(folder)">
+                                &#9654;
+                            </NcButton>
+                        </li>
+                    </ul>
+                    <div v-if="selectedFolders.length" class="folder-selection-summary">
+                        {{ selectedFolders.length }} folder(s) selected
+                        — {{ selectedFolders.length > 1 ? selectedFolders.length + ' jobs' : '1 job' }} will be created.
+                        <ul class="selected-folders-list">
+                            <li v-for="f in selectedFolders" :key="f.path">
+                                <code>{{ f.path }}</code>
+                                <a href="#" class="remove-folder" @click.prevent="removeFolder(f)">&#10005;</a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div v-else class="folder-selection-summary empty">
+                        Select one or more folders above, or check "Sync entire library".
+                    </div>
+                </div>
+            </div>
+
             <div class="step-actions">
                 <NcButton @click="step = 1">Back</NcButton>
-                <NcButton type="primary" :disabled="!selectedDrive" @click="step = 3">
+                <NcButton type="primary"
+                    :disabled="!selectedDrive || (!syncEntireDrive && selectedFolders.length === 0)"
+                    @click="step = 3">
                     Next
                 </NcButton>
             </div>
@@ -168,11 +221,27 @@
                 <dl>
                     <dt>Tenant</dt><dd>{{ selectedTenant?.name }}</dd>
                     <dt>Source</dt><dd>{{ selectedDrive?.name }} ({{ sourceTab === 'sites' ? 'SharePoint' : 'OneDrive' }})</dd>
+                    <template v-if="!syncEntireDrive">
+                        <dt>Folder(s)</dt>
+                        <dd>
+                            <ul class="review-folders">
+                                <li v-for="f in selectedFolders" :key="f.path"><code>{{ f.path }}</code></li>
+                            </ul>
+                        </dd>
+                    </template>
+                    <template v-else>
+                        <dt>Scope</dt>
+                        <dd>Entire library</dd>
+                    </template>
                     <dt>Destination</dt><dd>{{ destUser }}:{{ destPath }} ({{ destType }})</dd>
                     <dt>Mode</dt><dd>{{ syncMode }}</dd>
                     <dt>Schedule</dt><dd>{{ schedule }}</dd>
                 </dl>
             </div>
+
+            <p v-if="!syncEntireDrive && selectedFolders.length > 1" class="multi-job-hint">
+                {{ selectedFolders.length }} separate jobs will be created, one per selected folder.
+            </p>
 
             <div class="step-actions">
                 <NcButton @click="step = 3">Back</NcButton>
@@ -180,7 +249,7 @@
                     <template #icon>
                         <span v-if="creating" class="icon-loading-small" />
                     </template>
-                    Create Job
+                    {{ !syncEntireDrive && selectedFolders.length > 1 ? `Create ${selectedFolders.length} Jobs` : 'Create Job' }}
                 </NcButton>
             </div>
 
@@ -190,14 +259,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
 import LibraryList from '../components/LibraryList.vue'
 import {
     listTenants, listSites, listSiteDrives, listUsers, listUserDrives, createJob,
-    browseDestination, listNextcloudUsers,
+    browseDestination, listNextcloudUsers, listDriveFolders,
 } from '../services/api.js'
 
 const router = useRouter()
@@ -220,6 +289,13 @@ const selectedUserHasPassword = computed(() => {
 })
 const syncMode = ref('copy')
 const schedule = ref('manual')
+
+// Folder selection state
+const syncEntireDrive = ref(true)
+const folderItems = ref([])
+const loadingFolders = ref(false)
+const selectedFolders = ref([])  // [{id, name, path}]
+const folderCrumbs = ref([])     // [{id, name}] breadcrumb trail
 const jobName = ref('')
 const creating = ref(false)
 const error = ref('')
@@ -332,15 +408,80 @@ function selectDrive(drive, parent) {
         ...drive,
         siteId: parent?.type === 'site' ? parent.id : null,
     }
+    // Reset folder selection when drive changes
+    syncEntireDrive.value = true
+    selectedFolders.value = []
+    folderCrumbs.value = []
+    folderItems.value = []
 }
+
+// ---- Folder browsing ----
+
+async function loadFolders(itemId = '') {
+    if (!selectedTenant.value || !selectedDrive.value) return
+    loadingFolders.value = true
+    try {
+        const res = await listDriveFolders(
+            selectedTenant.value.id,
+            selectedDrive.value.id,
+            itemId,
+        )
+        folderItems.value = (res.data || []).map(f => ({
+            id: f.id,
+            name: f.name,
+            path: folderCrumbs.value.map(c => c.name).concat(f.name).join('/'),
+        }))
+    } catch (e) {
+        folderItems.value = []
+    } finally {
+        loadingFolders.value = false
+    }
+}
+
+function browseFolderRoot() {
+    folderCrumbs.value = []
+    loadFolders()
+}
+
+function drillIntoFolder(folder) {
+    folderCrumbs.value.push({ id: folder.id, name: folder.name })
+    loadFolders(folder.id)
+}
+
+function navigateToFolderCrumb(index) {
+    const crumb = folderCrumbs.value[index]
+    folderCrumbs.value = folderCrumbs.value.slice(0, index + 1)
+    loadFolders(crumb.id)
+}
+
+function isFolderSelected(folder) {
+    return selectedFolders.value.some(f => f.id === folder.id)
+}
+
+function toggleFolder(folder) {
+    if (isFolderSelected(folder)) {
+        selectedFolders.value = selectedFolders.value.filter(f => f.id !== folder.id)
+    } else {
+        selectedFolders.value.push({ id: folder.id, name: folder.name, path: folder.path })
+    }
+}
+
+function removeFolder(folder) {
+    selectedFolders.value = selectedFolders.value.filter(f => f.id !== folder.id)
+}
+
+watch(syncEntireDrive, (val) => {
+    if (!val && folderItems.value.length === 0) {
+        browseFolderRoot()
+    }
+})
 
 async function createSyncJob() {
     creating.value = true
     error.value = ''
     try {
-        await createJob({
+        const basePayload = {
             tenantId: selectedTenant.value.id,
-            name: jobName.value || defaultJobName.value,
             sourceType: selectedDrive.value.parentType === 'site' ? 'sharepoint' : 'onedrive',
             sourceSiteId: selectedDrive.value.siteId,
             sourceDriveId: selectedDrive.value.id,
@@ -350,10 +491,31 @@ async function createSyncJob() {
             destUser: destUser.value,
             syncMode: syncMode.value,
             schedule: schedule.value,
-        })
+        }
+
+        if (syncEntireDrive.value || selectedFolders.value.length === 0) {
+            // Single job for the entire drive
+            await createJob({
+                ...basePayload,
+                name: jobName.value || defaultJobName.value,
+                sourcePath: '',
+            })
+        } else {
+            // One job per selected folder
+            for (const folder of selectedFolders.value) {
+                const name = selectedFolders.value.length === 1
+                    ? (jobName.value || `Sync ${selectedDrive.value.name}/${folder.name}`)
+                    : `Sync ${selectedDrive.value.name}/${folder.name}`
+                await createJob({
+                    ...basePayload,
+                    name,
+                    sourcePath: folder.path,
+                })
+            }
+        }
         router.push({ name: 'jobs' })
     } catch (e) {
-        error.value = e.response?.data?.error || 'Failed to create job'
+        error.value = e.response?.data?.detail || e.response?.data?.error || 'Failed to create job'
     } finally {
         creating.value = false
     }
@@ -580,5 +742,133 @@ onMounted(async () => {
     background: var(--color-error);
     color: white;
     border-radius: 4px;
+}
+.folder-selector {
+    margin-top: 16px;
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: 8px;
+    padding: 12px;
+    background: var(--color-main-background, #fff);
+}
+.folder-selector-header {
+    margin-bottom: 8px;
+}
+.folder-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    cursor: pointer;
+}
+.folder-toggle input {
+    width: 16px;
+    height: 16px;
+}
+.folder-browser {
+    margin-top: 8px;
+}
+.folder-breadcrumbs {
+    font-family: monospace;
+    font-size: 13px;
+    margin-bottom: 8px;
+    padding: 4px 0;
+}
+.folder-breadcrumbs a {
+    color: var(--color-primary, #5186D7);
+    text-decoration: none;
+}
+.folder-breadcrumbs a:hover {
+    text-decoration: underline;
+}
+.folder-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 240px;
+    overflow-y: auto;
+    border: 1px solid var(--color-border, #eee);
+    border-radius: 4px;
+}
+.folder-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--color-border, #eee);
+}
+.folder-item:last-child {
+    border-bottom: none;
+}
+.folder-item:hover {
+    background: var(--color-background-hover, #f5f5f5);
+}
+.folder-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    flex: 1;
+}
+.folder-check input {
+    width: 16px;
+    height: 16px;
+}
+.folder-icon {
+    flex-shrink: 0;
+}
+.folder-loading, .folder-empty {
+    padding: 12px;
+    color: var(--color-text-maxcontrast, #777);
+    font-size: 13px;
+    text-align: center;
+}
+.folder-selection-summary {
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: var(--color-primary-element-light, #e7f1fb);
+    border-radius: 6px;
+    font-size: 13px;
+}
+.folder-selection-summary.empty {
+    background: var(--color-background-dark);
+    color: var(--color-text-maxcontrast);
+}
+.selected-folders-list {
+    list-style: none;
+    margin: 6px 0 0 0;
+    padding: 0;
+}
+.selected-folders-list li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 0;
+}
+.selected-folders-list code {
+    background: var(--color-background-dark);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+.remove-folder {
+    color: var(--color-error);
+    text-decoration: none;
+    font-size: 14px;
+}
+.review-folders {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.review-folders code {
+    background: var(--color-background-dark);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+.multi-job-hint {
+    font-size: 13px;
+    color: var(--color-text-maxcontrast);
+    margin: 8px 0;
 }
 </style>

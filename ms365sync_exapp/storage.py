@@ -56,6 +56,7 @@ class SyncJob:
     source_drive_id: str
     source_drive_name: str = ""
     source_site_id: str | None = None
+    source_path: str = ""  # subfolder within drive, e.g. "Documents/Projects"
     dest_path: str = ""
     dest_user: str = ""
     sync_mode: str = "copy"  # copy|sync

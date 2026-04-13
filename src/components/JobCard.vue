@@ -5,7 +5,7 @@
             <span :class="['status-badge', job.status]">{{ job.status }}</span>
         </div>
         <div class="job-card-meta">
-            <span>{{ job.sourceType === 'sharepoint' ? 'SharePoint' : 'OneDrive' }}: {{ job.sourceDriveName }}</span>
+            <span>{{ job.sourceType === 'sharepoint' ? 'SharePoint' : 'OneDrive' }}: {{ job.sourceDriveName }}{{ job.sourcePath ? '/' + job.sourcePath : '' }}</span>
             <span>&rarr; {{ job.destPath }}</span>
         </div>
         <ProgressBar v-if="job.status === 'running'"

@@ -16,6 +16,7 @@
                     <dl>
                         <dt>Type</dt><dd>{{ job.sourceType }}</dd>
                         <dt>Drive</dt><dd>{{ job.sourceDriveName }}</dd>
+                        <dt v-if="job.sourcePath">Folder</dt><dd v-if="job.sourcePath">{{ job.sourcePath }}</dd>
                         <dt>Drive ID</dt><dd class="mono">{{ job.sourceDriveId }}</dd>
                     </dl>
                 </div>

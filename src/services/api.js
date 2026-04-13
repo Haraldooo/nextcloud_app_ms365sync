@@ -61,6 +61,11 @@ export function listUsers(tenantId) {
 export function listUserDrives(tenantId, userId) {
     return axios.get(`${baseUrl}/libraries/${tenantId}/users/${userId}/drives`)
 }
+export function listDriveFolders(tenantId, driveId, itemId = '') {
+    return axios.get(`${baseUrl}/libraries/${tenantId}/drives/${driveId}/folders`, {
+        params: itemId ? { itemId } : {},
+    })
+}
 
 // --- Destinations (Nextcloud user file tree via WebDAV) ---
 export function listNextcloudUsers() {

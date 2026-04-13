@@ -157,6 +157,7 @@ class RcloneManager:
         client_id: str,
         client_secret: str,
         drive_id: str,
+        source_path: str = "",
         nextcloud_url: str,
         dest_user: str,
         app_password: str,
@@ -172,7 +173,7 @@ class RcloneManager:
             result = self._call(
                 endpoint,
                 {
-                    "srcFs": f"{src}:",
+                    "srcFs": f"{src}:{source_path}" if source_path else f"{src}:",
                     "dstFs": f"{dst}:{dest_path}",
                     "_async": True,
                     "_group": f"job/{nc_job_id}",

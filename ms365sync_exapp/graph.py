@@ -65,3 +65,17 @@ def list_users(token: str) -> list[dict]:
 
 def list_user_drives(token: str, user_id: str) -> list[dict]:
     return _get(token, f"/users/{user_id}/drives")
+
+
+def list_drive_children(token: str, drive_id: str, item_id: str = "") -> list[dict]:
+    """List folder children within a drive.
+
+    If *item_id* is empty, lists the root of the drive. Otherwise lists
+    children of the given item (folder). Only folders are returned.
+    """
+    if item_id:
+        path = f"/drives/{drive_id}/items/{item_id}/children"
+    else:
+        path = f"/drives/{drive_id}/root/children"
+    items = _get(token, path + "?$top=200")
+    return [i for i in items if "folder" in i]

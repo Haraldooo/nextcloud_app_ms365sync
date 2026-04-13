@@ -39,6 +39,12 @@ def list_user_drives(tenant_id: int, user_id: str):
     return graph.list_user_drives(_token(tenant_id), user_id)
 
 
+@router.get("/{tenant_id}/drives/{drive_id}/folders")
+def list_drive_folders(tenant_id: int, drive_id: str, itemId: str = ""):  # noqa: N803
+    """List folders inside a drive (root or subfolder)."""
+    return graph.list_drive_children(_token(tenant_id), drive_id, itemId)
+
+
 @router.get("/{tenant_id}/me/drives")
 def list_my_drives(tenant_id: int, userId: str):  # noqa: N803 (matches Vue UI)
     # Application-only auth has no "me" — UI passes the chosen user id.
