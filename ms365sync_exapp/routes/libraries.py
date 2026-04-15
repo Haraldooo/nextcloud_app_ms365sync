@@ -20,8 +20,8 @@ def _token(tenant_id: int) -> str:
 
 
 @router.get("/{tenant_id}/sites")
-def list_sites(tenant_id: int):
-    return graph.list_sites(_token(tenant_id))
+def list_sites(tenant_id: int, q: str = ""):
+    return graph.list_sites(_token(tenant_id), q)
 
 
 @router.get("/{tenant_id}/sites/{site_id}/drives")

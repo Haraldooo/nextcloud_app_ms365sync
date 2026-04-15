@@ -49,8 +49,10 @@ export function deleteAppPassword(user) {
 export function listMyDrives(tenantId, userId) {
     return axios.get(`${baseUrl}/libraries/${tenantId}/me/drives`, { params: { userId } })
 }
-export function listSites(tenantId) {
-    return axios.get(`${baseUrl}/libraries/${tenantId}/sites`)
+export function listSites(tenantId, q = '') {
+    return axios.get(`${baseUrl}/libraries/${tenantId}/sites`, {
+        params: q ? { q } : {},
+    })
 }
 export function listSiteDrives(tenantId, siteId) {
     return axios.get(`${baseUrl}/libraries/${tenantId}/sites/${siteId}/drives`)

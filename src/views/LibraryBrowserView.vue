@@ -42,6 +42,17 @@
                 </NcButton>
             </div>
 
+            <div v-if="sourceTab === 'sites'" class="library-search">
+                <input type="search"
+                    v-model="siteSearch"
+                    class="site-search-input"
+                    placeholder="Search SharePoint sites by name…" />
+                <span v-if="loadingLibrary" class="site-search-hint">Searching…</span>
+                <span v-else class="site-search-hint">
+                    {{ libraryItems.length }} site(s){{ siteSearch ? ` matching "${siteSearch}"` : '' }}
+                </span>
+            </div>
+
             <LibraryList :items="libraryItems"
                 :loading="loadingLibrary"
                 @select-drive="selectDrive"
@@ -279,6 +290,8 @@ const step = ref(1)
 const tenants = ref([])
 const selectedTenant = ref(null)
 const sourceTab = ref('sites')
+const siteSearch = ref('')
+let siteSearchTimer = null
 const libraryItems = ref([])
 const loadingLibrary = ref(false)
 const selectedDrive = ref(null)
@@ -354,7 +367,7 @@ async function loadSites() {
     if (!selectedTenant.value) return
     loadingLibrary.value = true
     try {
-        const res = await listSites(selectedTenant.value.id)
+        const res = await listSites(selectedTenant.value.id, siteSearch.value.trim())
         libraryItems.value = res.data.map(site => ({
             id: site.id,
             name: site.displayName || site.name,
@@ -474,6 +487,12 @@ function removeFolder(folder) {
     selectedFolders.value = selectedFolders.value.filter(f => f.id !== folder.id)
 }
 
+watch(siteSearch, () => {
+    if (sourceTab.value !== 'sites' || !selectedTenant.value) return
+    if (siteSearchTimer) clearTimeout(siteSearchTimer)
+    siteSearchTimer = setTimeout(() => loadSites(), 300)
+})
+
 watch(syncEntireDrive, (val) => {
     if (!val && folderItems.value.length === 0) {
         browseFolderRoot()
@@ -579,6 +598,25 @@ onMounted(async () => {
     display: flex;
     gap: 8px;
     margin-top: 16px;
+}
+.library-search {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.site-search-input {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border-dark, #ccc);
+    background: var(--color-main-background, #fff);
+    font-size: 14px;
+}
+.site-search-hint {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    white-space: nowrap;
 }
 .source-tabs {
     display: flex;
